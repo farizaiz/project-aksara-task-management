@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # --- PostgreSQL Database ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: aksara_postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: aksara_db 
+    ports:
+      # Di sinilah port 5433 harusnya berada (Host 5433 diarahkan ke Container 5432)
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - aksara_network
+    restart: unless-stopped
+
+  # --- RabbitMQ Message Broker ---
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: aksara_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      # Ini dikembalikan ke 5672 (Port standar RabbitMQ untuk komunikasi AMQP dengan Golang)
+      - "5672:5672"   
+      - "15672:15672" # Port UI Management Web
+    networks:
+      - aksara_network
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  aksara_network:
+    driver: bridge

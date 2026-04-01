@@ -1,0 +1,12 @@
+# Secrets
+.env
+
+# Go binaries
+main
+*.exe
+*.test
+
+# Frontend
+node_modules/
+dist/
+.env.local
