@@ -1,17 +1,19 @@
 package main
 
 import (
-	"aksara/pkg/database"
-	"aksara/user-service/internal/repository"
 	"log"
 	"os"
 
+	"aksara/pkg/database"
+	"aksara/user-service/internal/handler" // Import handler yang baru dibuat
+	"aksara/user-service/internal/repository"
+
+	"github.com/gin-gonic/gin" // Import framework Gin
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	// 1. Load file .env
-	// Jika file .env tidak ditemukan, log akan berhenti di sini
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: File .env tidak ditemukan, menggunakan environment system")
@@ -35,5 +37,21 @@ func main() {
 	log.Println("Menjalankan Auto Migration...")
 	db.AutoMigrate(&repository.User{})
 
-	log.Println("✅ Aksara User Service berjalan!")
+	// ==========================================
+	// INISIALISASI SERVER HTTP (GIN-GONIC)
+	// ==========================================
+
+	// 3. Inisialisasi framework Gin dengan konfigurasi default
+	r := gin.Default()
+
+	// 4. Inisialisasi Handler dengan menyuntikkan (inject) koneksi database
+	authHandler := handler.AuthHandler{DB: db}
+
+	// 5. Definisi Route untuk Endpoint Registrasi
+	r.POST("/register", authHandler.Register)
+	r.POST("/login", authHandler.Login)
+
+	// 6. Jalankan Server di Port 8081
+	log.Println("✅ Aksara User Service siap menerima request di port 8081...")
+	r.Run(":8081")
 }
