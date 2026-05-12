@@ -3,7 +3,6 @@ go 1.25.0
 use (
 	./api-gateway
 	./pkg
-	./services/auth-service
 	./services/comment-service
 	./services/notification-service
 	./services/project-service

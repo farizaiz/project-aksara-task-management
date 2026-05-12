@@ -20,7 +20,6 @@ func reverseProxy(target string) gin.HandlerFunc {
 		c.Request.URL.Scheme = url.Scheme
 		c.Request.Header.Set("X-Forwarded-Host", c.Request.Header.Get("Host"))
 
-		// Teruskan user_id hasil validasi middleware ke Header agar dibaca backend
 		if userID, exists := c.Get("user_id"); exists {
 			c.Request.Header.Set("X-User-Id", userID.(string))
 		}
@@ -38,7 +37,7 @@ func main() {
 	log.Println("Memulai Aksara API Gateway...")
 	r := gin.Default()
 
-	// Middleware CORS dasar
+	// Middleware CORS Dasar
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -55,7 +54,8 @@ func main() {
 	// ==========================================
 	userServiceURL := "http://localhost:8081"
 	projectServiceURL := "http://localhost:8082"
-	taskServiceURL := "http://localhost:8083" // Tambahkan target Task Service
+	taskServiceURL := "http://localhost:8083"
+	commentServiceURL := "http://localhost:8084" // Tambahkan target Comment Service
 
 	// ==========================================
 	// RUTE PUBLIK (Tanpa Token)
@@ -70,13 +70,13 @@ func main() {
 	// RUTE PRIVAT (Wajib Token JWT)
 	// ==========================================
 	protected := r.Group("/")
-	protected.Use(middleware.RequireAuth()) // Middleware penjaga gerbang
+	protected.Use(middleware.RequireAuth())
 	{
-		// Rute Project Service
 		protected.POST("/projects", reverseProxy(projectServiceURL))
-
-		// Rute Task Service (Baru)
 		protected.POST("/tasks", reverseProxy(taskServiceURL))
+
+		// Rute Comment Service (Baru)
+		protected.POST("/comments", reverseProxy(commentServiceURL))
 	}
 
 	log.Println("✅ API Gateway berjalan di port 8000...")
