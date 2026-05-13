@@ -83,3 +83,21 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		"data":    task,
 	})
 }
+
+// Fungsi untuk mengambil daftar tugas
+func (h *TaskHandler) GetTasks(c *gin.Context) {
+	var tasks []repository.Task
+
+	// Mengambil semua data tugas dari database
+	// Di masa depan, ini bisa difilter berdasarkan project_id atau user_id
+	if err := h.DB.Find(&tasks).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memuat daftar tugas"})
+		return
+	}
+
+	// Mengembalikan respons dengan key "data" (Sesuai yang diharapkan frontend)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil memuat tugas",
+		"data":    tasks,
+	})
+}

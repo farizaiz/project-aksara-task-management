@@ -73,7 +73,13 @@ func main() {
 	protected.Use(middleware.RequireAuth())
 	{
 		protected.POST("/projects", reverseProxy(projectServiceURL))
+
+		// --- PERBAIKAN DI SINI ---
+		// Rute untuk membuat tugas (POST)
 		protected.POST("/tasks", reverseProxy(taskServiceURL))
+		// TAMBAHKAN INI: Rute untuk mengambil daftar tugas (GET)
+		protected.GET("/tasks", reverseProxy(taskServiceURL))
+		// --------------------------
 
 		// Rute Comment Service (Baru)
 		protected.POST("/comments", reverseProxy(commentServiceURL))
