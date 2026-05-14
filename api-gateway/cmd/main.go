@@ -84,10 +84,13 @@ func main() {
 		// Rute Comment Service
 		protected.POST("/comments", reverseProxy(commentServiceURL))
 
-		// --- TAMBAHKAN BARIS INI ---
 		// Rute untuk mengambil profil user yang sedang login
 		protected.GET("/users/me", reverseProxy(userServiceURL))
 		protected.PUT("/users/me", reverseProxy(userServiceURL))
+
+		// Rute Khusus Admin
+		protected.GET("/admin/users", reverseProxy(userServiceURL))
+		protected.PUT("/admin/users/:id", reverseProxy(userServiceURL))
 	}
 
 	log.Println("✅ API Gateway berjalan di port 8000...")

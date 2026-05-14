@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-// 1. IMPORT LOGO DI SINI (Pastikan ekstensi dan namanya sesuai dengan file yang Anda simpan)
+// 1. IMPORT IKON MINIMALIS & LOGO (Pastikan file logo Anda ada)
+// Pustaka 'lucide-react' menyediakan ikon-ikon minimalis yang bersih.
+import { Mail, Lock, Eye, EyeOff, Home } from 'lucide-react'; 
 import logoAksara from '../assets/logo-aksara.png'; 
 
 const Login = () => {
@@ -10,6 +12,9 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // State baru untuk mengatur tampilan password (show/hide)
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -55,20 +60,18 @@ const Login = () => {
         overflow: 'hidden' 
       }}>
         
-        {/* === SISI KIRI (Dark Charcoal Panel) === */}
+        {/* === SISI KIRI (Dark Panel - Tetap Bergradasi Abu-abu) === */}
         <div style={{ 
           flex: 1, 
-          backgroundColor: '#111111', 
+          background: 'linear-gradient(135deg, #374151 0%, #030712 100%)', 
           color: '#FFFFFF', 
           padding: '60px 50px', 
           display: 'flex', 
-          flexDirection: 'column', 
-          justifyContent: 'space-between' 
+          flexDirection: 'column' 
         }}>
-          {/* Logo & Brand Aktual */}
+          {/* Logo & Brand */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '8px' }}>
-              {/* Menggunakan tag <img /> untuk memanggil logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '0px' }}>
               <img 
                 src={logoAksara} 
                 alt="Aksara Logo" 
@@ -76,18 +79,20 @@ const Login = () => {
               />
               <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>Aksara</h1>
             </div>
-            {/* Menggeser margin kiri agar tulisan sejajar dengan teks Aksara */}
-            <span style={{ color: '#A1A1AA', fontSize: '14px', marginLeft: '60px' }}>Task Management System</span>
+            {/* Tagline - jarak dirapatkan */}
+            <span style={{ color: '#A1A1AA', fontSize: '14px', marginLeft: '60px', display: 'block', marginTop: '-4px' }}>
+              Daily Management Platform
+            </span>
           </div>
 
-          {/* Tagline & Deskripsi */}
-          <div>
-            <h2 style={{ fontSize: '36px', lineHeight: '1.3', fontWeight: 'bold', margin: '0 0 20px 0' }}>
-              Kelola tugas.<br/>Tingkatkan kolaborasi.<br/>Capai tujuan.
+          {/* Tagline & Deskripsi Personal (Ukuran Font Kecil & Personal) */}
+          <div style={{ marginTop: 'auto', marginBottom: 'auto' }}> 
+            <h2 style={{ fontSize: '28px', lineHeight: '1.4', fontWeight: 'bold', margin: '0 0 16px 0' }}>
+              Kelola keseharian.<br/>Pantau keuangan.<br/>Simpan catatan penting.
             </h2>
             <div style={{ width: '40px', height: '2px', backgroundColor: '#FFFFFF', marginBottom: '20px' }}></div>
             <p style={{ color: '#A1A1AA', fontSize: '15px', lineHeight: '1.6', maxWidth: '90%' }}>
-              Aksara membantu tim Anda tetap terorganisir dan produktif setiap hari.
+              Sistem personal untuk menjaga keseharian tetap terorganisir, produktif, dan dalam kendali penuh.
             </p>
             
             {/* Dekorasi Geometris (Subtle Pattern) */}
@@ -103,14 +108,9 @@ const Login = () => {
               ))}
             </div>
           </div>
-
-          {/* Footer Info */}
-          <div style={{ color: '#A1A1AA', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span>👥</span> Bersama tim, semua jadi lebih mudah.
-          </div>
         </div>
 
-        {/* === SISI KANAN (Form Area - Minimalist SaaS) === */}
+        {/* === SISI KANAN (Form Area - Minimalist) === */}
         <div style={{ 
           flex: 1, 
           padding: '60px 80px', 
@@ -119,8 +119,8 @@ const Login = () => {
           justifyContent: 'center',
           backgroundColor: '#FFFFFF'
         }}>
-          <h2 style={{ margin: '0 0 8px 0', fontSize: '28px', color: '#111111' }}>Masuk ke Aksara</h2>
-          <p style={{ margin: '0 0 35px 0', color: '#666666', fontSize: '15px' }}>Silakan masuk untuk melanjutkan</p>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '28px', color: '#111111' , textAlign: 'center'}}>Masuk ke Aksara</h2>
+          <p style={{ margin: '0 0 35px 0', color: '#666666', fontSize: '15px', textAlign: 'center' }}>Silakan masuk untuk melanjutkan</p>
 
           {/* Error Message */}
           {errorMsg && (
@@ -131,11 +131,12 @@ const Login = () => {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            {/* Input Email */}
+            {/* Input Email dengan Ikon Minimalis Envelope */}
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#111111' }}>Email</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '15px', top: '14px', color: '#888888' }}>✉️</span>
+                {/* --- GANTI IKON BEWARNA (✉️) JADI MINIMALIS (Mail) --- */}
+                <Mail size={18} style={{ position: 'absolute', left: '15px', top: '14px', color: '#888888' }} />
                 <input 
                   type="email" 
                   placeholder="nama@contoh.com" 
@@ -144,7 +145,7 @@ const Login = () => {
                   required
                   style={{ 
                     width: '100%', 
-                    padding: '14px 15px 14px 45px', 
+                    padding: '14px 15px 14px 45px', // Padding untuk ikon kiri (Envelope)
                     backgroundColor: '#FAFAFA', 
                     border: '1px solid #E5E5E5', 
                     borderRadius: '8px', 
@@ -160,20 +161,22 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Input Password */}
+            {/* Input Password dengan Ikon Minimalis Lock & Visibility Toggle */}
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#111111' }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '15px', top: '14px', color: '#888888' }}>🔒</span>
+                {/* --- GANTI IKON BEWARNA (🔒) JADI MINIMALIS (Lock) --- */}
+                <Lock size={18} style={{ position: 'absolute', left: '15px', top: '14px', color: '#888888' }} />
                 <input 
-                  type="password" 
+                  // Tipe input berubah berdasarkan state showPassword
+                  type={showPassword ? 'text' : 'password'} 
                   placeholder="Masukkan password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   style={{ 
                     width: '100%', 
-                    padding: '14px 45px', 
+                    padding: '14px 45px 14px 45px', // Padding untuk ikon kiri (Lock) & kanan (Eye)
                     backgroundColor: '#FAFAFA', 
                     border: '1px solid #E5E5E5', 
                     borderRadius: '8px', 
@@ -186,7 +189,22 @@ const Login = () => {
                   onFocus={(e) => e.target.style.border = '1px solid #111111'}
                   onBlur={(e) => e.target.style.border = '1px solid #E5E5E5'}
                 />
-                <span style={{ position: 'absolute', right: '15px', top: '14px', color: '#888888', cursor: 'pointer' }}>👁️</span>
+                
+                {/* --- GANTI IKON BEWARNA (👁️) JADI MINIMALIS (Eye/EyeOff) & Tambah Tombol Toggle --- */}
+                <span 
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ 
+                    position: 'absolute', 
+                    right: '15px', 
+                    top: '14px', 
+                    color: '#888888', 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </span>
               </div>
             </div>
 

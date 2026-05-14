@@ -53,6 +53,14 @@ func main() {
 	r.GET("/users/me", authHandler.GetProfile)
 	r.PUT("/users/me", authHandler.UpdateProfile)
 
+	adminRoutes := r.Group("/admin")
+	adminRoutes.Use(authHandler.RequireAdmin()) // Pasang gembok di sini
+	{
+		// Hasil akhirnya menjadi: GET /admin/users
+		adminRoutes.GET("/users", authHandler.GetAllUsers)
+		adminRoutes.PUT("/users/:id", authHandler.UpdateUserByAdmin)
+	}
+
 	// 6. Jalankan Server di Port 8081
 	log.Println("✅ Aksara User Service siap menerima request di port 8081...")
 	r.Run(":8081")

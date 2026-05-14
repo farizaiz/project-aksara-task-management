@@ -89,6 +89,12 @@ const DashboardLayout = () => {
     { name: 'Settings', icon: '⚙️', path: '/settings' },
   ];
 
+  // Jika user yang login memiliki role 'super_admin', tambahkan menu rahasia
+  if (user && user.role === 'super_admin') {
+    navItems.push({ name: 'User Management', icon: '🛡️', path: '/admin/users' });
+  }
+  // ----------------------------
+
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#FAFAFA', fontFamily: '"Inter", "Segoe UI", sans-serif' }}>
       

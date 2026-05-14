@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Board from './pages/Dashboard';
 import DashboardLayout from './layouts/DashboardLayout';
+import UserManagement from './pages/UserManagement';
+// ----------------------------
 
 // --- KOMPONEN PROTEKSI ---
 // Fungsi ini bertugas mengecek apakah pengguna punya "tiket masuk" (token)
@@ -34,8 +36,14 @@ function App() {
             </ProtectedRoute>
           }
         >
-          {/* Halaman Board Kanban */}
+          {/* Halaman Board Kanban (Akan tampil saat URL = "/") */}
           <Route index element={<Board />} />
+
+          {/* --- TAMBAHKAN RUTE ADMIN DI SINI --- */}
+          {/* Akan tampil saat URL = "/admin/users" dan tetap ada Sidebar-nya */}
+          <Route path="admin/users" element={<UserManagement />} />
+          {/* ------------------------------------ */}
+
         </Route>
         
         {/* Redirect jika rute tidak ditemukan */}
