@@ -50,6 +50,8 @@ func main() {
 	// 5. Definisi Route untuk Endpoint Registrasi
 	r.POST("/register", authHandler.Register)
 	r.POST("/login", authHandler.Login)
+	r.GET("/users/me", authHandler.GetProfile)
+	r.PUT("/users/me", authHandler.UpdateProfile)
 
 	// 6. Jalankan Server di Port 8081
 	log.Println("✅ Aksara User Service siap menerima request di port 8081...")

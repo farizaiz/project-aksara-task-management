@@ -101,3 +101,39 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		"data":    tasks,
 	})
 }
+
+// Fungsi untuk memperbarui status tugas (Drag & Drop)
+func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
+	// 1. Ambil ID tugas dari parameter URL
+	id := c.Param("id")
+
+	// 2. Siapkan wadah untuk menangkap status baru dari frontend
+	var input struct {
+		Status string `json:"status" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	// 3. Cari tugas berdasarkan ID di database
+	var task repository.Task
+	if err := h.DB.First(&task, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas tidak ditemukan"})
+		return
+	}
+
+	// 4. Perbarui statusnya dan simpan kembali ke database
+	task.Status = input.Status
+	if err := h.DB.Save(&task).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui status tugas"})
+		return
+	}
+
+	// 5. Berikan respons sukses
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Status tugas berhasil diperbarui",
+		"data":    task,
+	})
+}

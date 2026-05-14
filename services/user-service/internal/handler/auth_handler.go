@@ -93,3 +93,78 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"token":   token,
 	})
 }
+
+// ==========================================
+// 3. ENDPOINT GET PROFILE (BARU)
+// ==========================================
+func (h *AuthHandler) GetProfile(c *gin.Context) {
+	// API Gateway menitipkan ID User di header ini
+	userID := c.GetHeader("X-User-Id")
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tidak ada akses"})
+		return
+	}
+
+	// Cari user di database berdasarkan ID
+	var user repository.User
+	if err := h.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User tidak ditemukan"})
+		return
+	}
+
+	// Kembalikan data user (TIDAK TERMASUK PASSWORD)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profil berhasil diambil",
+		"data": gin.H{
+			"id":        user.ID,
+			"full_name": user.FullName, // Menggunakan FullName sesuai dengan struct Anda
+			"email":     user.Email,
+		},
+	})
+}
+
+// ==========================================
+// 4. ENDPOINT UPDATE PROFILE (BARU)
+// ==========================================
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	// Ambil ID dari token yang sudah divalidasi API Gateway
+	userID := c.GetHeader("X-User-Id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tidak ada akses"})
+		return
+	}
+
+	// Tangkap input nama baru dari Frontend
+	var input struct {
+		FullName string `json:"full_name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	// Cari user di database
+	var user repository.User
+	if err := h.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User tidak ditemukan"})
+		return
+	}
+
+	// Timpa nama lama dengan nama baru, lalu simpan ke database
+	user.FullName = input.FullName
+	if err := h.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui nama"})
+		return
+	}
+
+	// Kembalikan respons sukses
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Nama berhasil diperbarui",
+		"data": gin.H{
+			"id":        user.ID,
+			"full_name": user.FullName,
+			"email":     user.Email,
+		},
+	})
+}

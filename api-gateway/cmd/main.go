@@ -74,15 +74,20 @@ func main() {
 	{
 		protected.POST("/projects", reverseProxy(projectServiceURL))
 
-		// --- PERBAIKAN DI SINI ---
 		// Rute untuk membuat tugas (POST)
 		protected.POST("/tasks", reverseProxy(taskServiceURL))
-		// TAMBAHKAN INI: Rute untuk mengambil daftar tugas (GET)
+		// Rute untuk mengambil daftar tugas (GET)
 		protected.GET("/tasks", reverseProxy(taskServiceURL))
-		// --------------------------
+		// Rute untuk update status tugas (PUT)
+		protected.PUT("/tasks/:id", reverseProxy(taskServiceURL))
 
-		// Rute Comment Service (Baru)
+		// Rute Comment Service
 		protected.POST("/comments", reverseProxy(commentServiceURL))
+
+		// --- TAMBAHKAN BARIS INI ---
+		// Rute untuk mengambil profil user yang sedang login
+		protected.GET("/users/me", reverseProxy(userServiceURL))
+		protected.PUT("/users/me", reverseProxy(userServiceURL))
 	}
 
 	log.Println("✅ API Gateway berjalan di port 8000...")
