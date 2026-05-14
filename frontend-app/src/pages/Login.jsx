@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
 // 1. IMPORT IKON MINIMALIS & LOGO (Pastikan file logo Anda ada)
@@ -256,9 +256,9 @@ const Login = () => {
             <span style={{ fontWeight: 'bold', fontSize: '18px' }}>G</span> Masuk dengan Google
           </button>
 
-          {/* Link Daftar */}
+        {/* Link Daftar */}
           <div style={{ textAlign: 'center', marginTop: '30px', fontSize: '14px', color: '#666666' }}>
-            Belum punya akun? <a href="#" style={{ color: '#111111', fontWeight: 'bold', textDecoration: 'none' }}>Daftar sekarang</a>
+             Belum punya akun? <Link to="/register" style={{ color: '#111111', fontWeight: 'bold', textDecoration: 'none' }}>Daftar sekarang</Link>
           </div>
 
         </div>

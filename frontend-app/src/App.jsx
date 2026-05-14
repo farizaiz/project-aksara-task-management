@@ -1,7 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Board from './pages/Dashboard';
+import Register from './pages/Register';
+import HomeDashboard from './pages/HomeDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
 import UserManagement from './pages/UserManagement';
 // ----------------------------
@@ -25,6 +26,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Rute Publik: Bisa diakses siapa saja */}
+        <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
 
         {/* Rute Privat: Dibungkus oleh ProtectedRoute */}
@@ -37,7 +39,7 @@ function App() {
           }
         >
           {/* Halaman Board Kanban (Akan tampil saat URL = "/") */}
-          <Route index element={<Board />} />
+          <Route index element={<HomeDashboard />} />
 
           {/* --- TAMBAHKAN RUTE ADMIN DI SINI --- */}
           {/* Akan tampil saat URL = "/admin/users" dan tetap ada Sidebar-nya */}

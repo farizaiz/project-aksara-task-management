@@ -80,11 +80,6 @@ const UserManagement = () => {
 
   return (
     <div style={{ padding: '20px 0', position: 'relative' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#09090B', margin: '0 0 8px 0' }}>User Management</h1>
-        <p style={{ color: '#71717A', margin: 0, fontSize: '14px' }}>Kelola semua akun pengguna di platform Aksara.</p>
-      </div>
-
       {/* --- TABEL PENGGUNA --- */}
       <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '12px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
