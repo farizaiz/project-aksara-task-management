@@ -5,6 +5,8 @@ import Register from './pages/Register';
 import HomeDashboard from './pages/HomeDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
 import UserManagement from './pages/UserManagement';
+import Tasks from './pages/Tasks'; 
+import ProjectDetail from './pages/ProjectDetail';
 // ----------------------------
 
 // --- KOMPONEN PROTEKSI ---
@@ -38,10 +40,15 @@ function App() {
             </ProtectedRoute>
           }
         >
-          {/* Halaman Board Kanban (Akan tampil saat URL = "/") */}
+          {/* Halaman Home Dashboard (Akan tampil saat URL = "/") */}
           <Route index element={<HomeDashboard />} />
 
-          {/* --- TAMBAHKAN RUTE ADMIN DI SINI --- */}
+          {/* --- RUTE HALAMAN TASKS --- */}
+          {/* Akan tampil saat URL = "/tasks" */}
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="tasks/:projectId" element={<ProjectDetail />} /> {/* Menampilkan Kanban Board */}
+
+          {/* --- RUTE ADMIN --- */}
           {/* Akan tampil saat URL = "/admin/users" dan tetap ada Sidebar-nya */}
           <Route path="admin/users" element={<UserManagement />} />
           {/* ------------------------------------ */}

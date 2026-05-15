@@ -73,13 +73,15 @@ func main() {
 	protected.Use(middleware.RequireAuth())
 	{
 		protected.POST("/projects", reverseProxy(projectServiceURL))
+		protected.GET("/projects", reverseProxy(projectServiceURL))
+		protected.GET("/projects/:id", reverseProxy(projectServiceURL))
+		protected.PUT("/projects/:id", reverseProxy(projectServiceURL))
 
 		// Rute untuk membuat tugas (POST)
 		protected.POST("/tasks", reverseProxy(taskServiceURL))
-		// Rute untuk mengambil daftar tugas (GET)
 		protected.GET("/tasks", reverseProxy(taskServiceURL))
-		// Rute untuk update status tugas (PUT)
 		protected.PUT("/tasks/:id", reverseProxy(taskServiceURL))
+		protected.DELETE("/tasks/:id", reverseProxy(taskServiceURL))
 
 		// Rute Comment Service
 		protected.POST("/comments", reverseProxy(commentServiceURL))

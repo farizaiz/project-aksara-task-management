@@ -1,10 +1,7 @@
 package handler
 
 import (
-	"context"
-	"encoding/json"
 	"net/http"
-	"time"
 
 	"aksara/task-service/internal/repository"
 
@@ -18,12 +15,16 @@ type TaskHandler struct {
 	RabbitConn *amqp.Connection // Tambahan: Menampung koneksi RabbitMQ
 }
 
+// ==========================================
+// CREATE TASK
+// ==========================================
 func (h *TaskHandler) CreateTask(c *gin.Context) {
+	// 1. Tambahkan "Status" di struct penangkap JSON
 	var input struct {
-		Title       string  `json:"title" binding:"required"`
-		Description string  `json:"description"`
-		ProjectID   string  `json:"project_id" binding:"required"`
-		AssigneeID  *string `json:"assignee_id"`
+		Title       string `json:"title" binding:"required"`
+		Description string `json:"description"`
+		ProjectID   string `json:"project_id" binding:"required"`
+		Status      string `json:"status"` // <--- TAMBAHKAN INI
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -31,57 +32,26 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
+	// 2. Beri nilai default "To Do" HANYA JIKA dari frontend kosong
+	taskStatus := input.Status
+	if taskStatus == "" {
+		taskStatus = "To Do"
+	}
+
+	// 3. Masukkan taskStatus ke dalam data yang akan disimpan
 	task := repository.Task{
 		Title:       input.Title,
 		Description: input.Description,
 		ProjectID:   input.ProjectID,
-		AssigneeID:  input.AssigneeID,
+		Status:      taskStatus, // <--- GUNAKAN VARIABEL INI, JANGAN DI-HARDCODE "To Do"
 	}
 
-	// Simpan ke PostgreSQL
 	if err := h.DB.Create(&task).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan task"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan tugas"})
 		return
 	}
 
-	// ==========================================
-	// PUBLISH EVENT KE RABBITMQ
-	// ==========================================
-	if h.RabbitConn != nil {
-		ch, err := h.RabbitConn.Channel()
-		if err == nil {
-			defer ch.Close()
-
-			// Siapkan payload event (format JSON)
-			eventData, _ := json.Marshal(map[string]interface{}{
-				"task_id":    task.ID,
-				"title":      task.Title,
-				"project_id": task.ProjectID,
-				"created_at": task.CreatedAt,
-			})
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			// Lempar pesan ke antrean target
-			ch.PublishWithContext(ctx,
-				"",                   // exchange
-				"task_created_queue", // routing key (nama antrean target)
-				false,                // mandatory
-				false,                // immediate
-				amqp.Publishing{
-					ContentType: "application/json",
-					Body:        eventData,
-				})
-		}
-	}
-	// ==========================================
-
-	// Kembalikan respons instan ke client (tanpa menunggu proses notifikasi selesai)
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Task berhasil dibuat!",
-		"data":    task,
-	})
+	c.JSON(http.StatusCreated, gin.H{"message": "Tugas berhasil dibuat!", "data": task})
 }
 
 // Fungsi untuk mengambil daftar tugas
@@ -136,4 +106,20 @@ func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
 		"message": "Status tugas berhasil diperbarui",
 		"data":    task,
 	})
+}
+
+// ==========================================
+// DELETE TASK
+// ==========================================
+func (h *TaskHandler) DeleteTask(c *gin.Context) {
+	id := c.Param("id")
+
+	// GORM otomatis melakukan "Soft Delete" (hanya mengisi kolom deleted_at)
+	// Jadi data tidak benar-benar hilang dari database, sangat aman untuk audit!
+	if err := h.DB.Where("id = ?", id).Delete(&repository.Task{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus tugas"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Tugas berhasil dihapus"})
 }

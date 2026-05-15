@@ -54,8 +54,8 @@ func main() {
 
 	r.POST("/tasks", taskHandler.CreateTask)
 	r.GET("/tasks", taskHandler.GetTasks)
-
 	r.PUT("/tasks/:id", taskHandler.UpdateTaskStatus)
+	r.DELETE("/tasks/:id", taskHandler.DeleteTask)
 
 	log.Println("✅ Aksara Task Service berjalan di port 8083...")
 	r.Run(":8083")

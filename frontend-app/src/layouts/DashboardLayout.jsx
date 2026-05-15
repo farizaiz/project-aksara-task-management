@@ -69,7 +69,6 @@ const DashboardLayout = () => {
     { name: 'Learning', icon: <BookOpen size={18} />, path: '/learning' },
     { name: 'Notes', icon: <FileText size={18} />, path: '/notes' },
     { name: 'Documents', icon: <Files size={18} />, path: '/documents' },
-    { name: 'Activity', icon: <Activity size={18} />, path: '/activity' },
   ];
 
   // --- 2. PISAHKAN MENU ADMIN/SETTING (BAWAH) ---
