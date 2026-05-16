@@ -5,7 +5,7 @@ import axios from 'axios';
 // 1. IMPORT IKON MINIMALIS & LOGO (Pastikan file logo Anda ada)
 // Pustaka 'lucide-react' menyediakan ikon-ikon minimalis yang bersih.
 import { Mail, Lock, Eye, EyeOff, Home } from 'lucide-react'; 
-import logoAksara from '../assets/logo-aksara.png'; 
+import logoAksara from '../../assets/logo-aksara.png'; 
 
 const Login = () => {
   const navigate = useNavigate();

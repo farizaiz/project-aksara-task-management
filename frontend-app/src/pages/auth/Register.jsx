@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react'; 
-import logoAksara from '../assets/logo-aksara.png'; // Pastikan path logo sesuai
+import logoAksara from '../../assets/logo-aksara.png';
 
 const Register = () => {
   const navigate = useNavigate();

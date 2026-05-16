@@ -1,25 +1,21 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import HomeDashboard from './pages/HomeDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
-import UserManagement from './pages/UserManagement';
-import Tasks from './pages/Tasks'; 
-import ProjectDetail from './pages/ProjectDetail';
-// ----------------------------
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import HomeDashboard from './pages/dashboard/HomeDashboard';
+import Tasks from './pages/tasks/Tasks'; 
+import ProjectDetail from './pages/tasks/ProjectDetail';
+import UserManagement from './pages/admin/UserManagement';
+// ----------------------------------------------------------------------
 
-// --- KOMPONEN PROTEKSI ---
-// Fungsi ini bertugas mengecek apakah pengguna punya "tiket masuk" (token)
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('aksara_token');
   
   if (!token) {
-    // Jika tidak ada token, tendang kembali ke halaman login
     return <Navigate to="/login" replace />;
   }
 
-  // Jika ada token, izinkan melihat halaman yang diminta
   return children;
 };
 
@@ -27,11 +23,11 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rute Publik: Bisa diakses siapa saja */}
+        {/* Rute Publik */}
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Rute Privat: Dibungkus oleh ProtectedRoute */}
+        {/* Rute Privat */}
         <Route 
           path="/" 
           element={
@@ -40,19 +36,14 @@ function App() {
             </ProtectedRoute>
           }
         >
-          {/* Halaman Home Dashboard (Akan tampil saat URL = "/") */}
           <Route index element={<HomeDashboard />} />
 
-          {/* --- RUTE HALAMAN TASKS --- */}
-          {/* Akan tampil saat URL = "/tasks" */}
+          {/* Rute Tasks */}
           <Route path="tasks" element={<Tasks />} />
-          <Route path="tasks/:projectId" element={<ProjectDetail />} /> {/* Menampilkan Kanban Board */}
+          <Route path="tasks/:projectId" element={<ProjectDetail />} />
 
-          {/* --- RUTE ADMIN --- */}
-          {/* Akan tampil saat URL = "/admin/users" dan tetap ada Sidebar-nya */}
+          {/* Rute Admin */}
           <Route path="admin/users" element={<UserManagement />} />
-          {/* ------------------------------------ */}
-
         </Route>
         
         {/* Redirect jika rute tidak ditemukan */}

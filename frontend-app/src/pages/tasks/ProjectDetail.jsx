@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Plus, Layout, List as ListIcon, Calendar as CalendarIcon, 
   ChevronRight, Folder, Settings2, Trash2, Edit2, Filter, ArrowUpDown,
-  MoreHorizontal, Edit, Palette, MessageSquare, Clock, X, Paperclip, Smile,
-  Code, FileText, Copy, ArrowRight, GripVertical, AlignLeft
+  MoreHorizontal, Edit, Palette, MessageSquare, Copy, ArrowRight, GripVertical
 } from 'lucide-react';
+// IMPORT KOMPONEN DRAWER BARU
+import TaskDrawer from './components/TaskDrawer';
 
 const PRESET_COLORS = [
-  { name: 'Slate', value: '#64748B' },
-  { name: 'Blue', value: '#3B82F6' },
-  { name: 'Amber', value: '#F59E0B' },
-  { name: 'Orange', value: '#F97316' },
-  { name: 'Green', value: '#22C55E' },
-  { name: 'Red', value: '#EF4444' },
+  { name: 'Slate', value: '#64748B' }, { name: 'Blue', value: '#3B82F6' },
+  { name: 'Amber', value: '#F59E0B' }, { name: 'Orange', value: '#F97316' },
+  { name: 'Green', value: '#22C55E' }, { name: 'Red', value: '#EF4444' },
   { name: 'Purple', value: '#A855F7' }
 ];
 
@@ -39,7 +36,6 @@ const ProjectDetail = () => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Column States
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#64748B'); 
@@ -49,52 +45,33 @@ const ProjectDetail = () => {
   const [colorPickerColId, setColorPickerColId] = useState(null);
   const [tempColor, setTempColor] = useState(''); 
 
-  // Task Add/Edit States
   const [addingTaskColId, setAddingTaskColId] = useState(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskLabel, setNewTaskLabel] = useState(null); 
   const [showLabelSelectorColId, setShowLabelSelectorColId] = useState(null);
   const [labelSearchQuery, setLabelSearchQuery] = useState('');
 
-  // Task Actions
   const [hoveredTaskId, setHoveredTaskId] = useState(null);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
   const [moveSubmenuTaskId, setMoveSubmenuTaskId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
 
-  // --- DRAWER STATES ---
   const [selectedTask, setSelectedTask] = useState(null);
-  const [isEditingDrawerTitle, setIsEditingDrawerTitle] = useState(false);
-  const [drawerTitleVal, setDrawerTitleVal] = useState('');
-  
-  const [isDrawerLabelOpen, setIsDrawerLabelOpen] = useState(false);
-  const [drawerLabelSearch, setDrawerLabelSearch] = useState('');
-
-  const [isEditingStartDate, setIsEditingStartDate] = useState(false);
-  const [isEditingEndDate, setIsEditingEndDate] = useState(false);
-  
-  const [isEditingDesc, setIsEditingDesc] = useState(false);
-  const [drawerDescVal, setDrawerDescVal] = useState('');
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('aksara_token');
       const projectRes = await axios.get(`http://localhost:8000/projects/${projectId}`, { headers: { Authorization: `Bearer ${token}` } });
       setCurrentProject(projectRes.data.data);
+      if (projectRes.data.data.columns) setColumns(typeof projectRes.data.data.columns === 'string' ? JSON.parse(projectRes.data.data.columns) : projectRes.data.data.columns);
       
-      if (projectRes.data.data.columns) {
-        setColumns(typeof projectRes.data.data.columns === 'string' ? JSON.parse(projectRes.data.data.columns) : projectRes.data.data.columns);
-      }
-
       try {
         const taskRes = await axios.get('http://localhost:8000/tasks', { headers: { Authorization: `Bearer ${token}` } });
-        if (taskRes.data && taskRes.data.data) {
-          setTasks(taskRes.data.data.filter(t => t.project_id === projectId));
-        }
+        if (taskRes.data && taskRes.data.data) setTasks(taskRes.data.data.filter(t => t.project_id === projectId));
       } catch (e) {}
     } catch (error) {
-      console.error("Gagal memuat:", error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -102,14 +79,6 @@ const ProjectDetail = () => {
 
   useEffect(() => { fetchData(); }, [projectId]);
 
-  useEffect(() => {
-    if (selectedTask) {
-      const updatedTask = tasks.find(t => t.id === selectedTask.id);
-      if (updatedTask) setSelectedTask(updatedTask);
-    }
-  }, [tasks]);
-
-  // Click Outside Listeners
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (openMenuColId) {
@@ -132,16 +101,10 @@ const ProjectDetail = () => {
           setShowLabelSelectorColId(null); setLabelSearchQuery('');
         }
       }
-      if (isDrawerLabelOpen) {
-        const popup = document.getElementById(`drawer-label-selector`);
-        if (popup && !popup.contains(e.target) && e.target.closest('button')?.getAttribute('id') !== `btn-drawer-label`) {
-          setIsDrawerLabelOpen(false); setDrawerLabelSearch('');
-        }
-      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [openMenuColId, colorPickerColId, openMenuTaskId, showLabelSelectorColId, isDrawerLabelOpen]);
+  }, [openMenuColId, colorPickerColId, openMenuTaskId, showLabelSelectorColId]);
 
   const saveColumnsToDB = async (updatedColumns) => {
     setColumns(updatedColumns); 
@@ -185,9 +148,7 @@ const ProjectDetail = () => {
     if (!newTaskTitle.trim()) return;
     try {
       const token = localStorage.getItem('aksara_token');
-      await axios.post('http://localhost:8000/tasks', { 
-        title: newTaskTitle, project_id: projectId, status: colId, label: newTaskLabel 
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post('http://localhost:8000/tasks', { title: newTaskTitle, project_id: projectId, status: colId, label: newTaskLabel }, { headers: { Authorization: `Bearer ${token}` } });
       setNewTaskTitle(''); setAddingTaskColId(null); setNewTaskLabel(null); setShowLabelSelectorColId(null); fetchData(); 
     } catch (error) {}
   };
@@ -200,8 +161,8 @@ const ProjectDetail = () => {
     try { await axios.put(`http://localhost:8000/tasks/${taskId}`, { title: editTaskTitle }, { headers: { Authorization: `Bearer ${token}` } }); } catch (error) { fetchData(); }
   };
 
-  // --- Fungsi Update Universal Untuk Drawer ---
   const updateSelectedTask = async (updates) => {
+    if(!selectedTask) return;
     const updatedTask = { ...selectedTask, ...updates };
     setSelectedTask(updatedTask);
     setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
@@ -270,15 +231,12 @@ const ProjectDetail = () => {
     const col = columns.find(c => c.id === colId);
     return col ? { name: col.title, color: col.color } : { name: colId, color: '#64748B' };
   };
-
   const getTaskLabel = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || !task.label) return TASK_LABELS[0];
     return TASK_LABELS.find(l => l.id === task.label) || TASK_LABELS[0];
   };
-
   const getLabelById = (labelId) => TASK_LABELS.find(l => l.id === labelId) || TASK_LABELS[0];
-
   const formatDate = (dateString) => {
     if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -290,13 +248,11 @@ const ProjectDetail = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: '"Inter", "Segoe UI", sans-serif' }}>
       
-      {/* BREADCRUMB */}
+      {/* HEADER */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', fontSize: '13px', color: '#6B7280' }}>
         <span onClick={() => navigate('/tasks')} style={{ cursor: 'pointer' }}>Projects</span>
         <ChevronRight size={14} /><span style={{ color: '#111827', fontWeight: '500' }}>{currentProject.name}</span>
       </div>
-
-      {/* PROJECT HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div style={{ display: 'flex', gap: '16px' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: currentProject.bg_color || '#EEF2FF', color: currentProject.icon_color || '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Folder size={32} /></div>
@@ -311,7 +267,7 @@ const ProjectDetail = () => {
         </div>
       </div>
 
-      {/* TABS & FILTER */}
+      {/* TABS */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', backgroundColor: '#F3F4F6', padding: '4px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
           <button onClick={() => setActiveView('Board')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500', backgroundColor: activeView === 'Board' ? '#FFFFFF' : 'transparent', color: activeView === 'Board' ? '#111827' : '#6B7280', boxShadow: activeView === 'Board' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}><Layout size={14} /> Board</button>
@@ -327,10 +283,7 @@ const ProjectDetail = () => {
       {/* KANBAN BOARD */}
       <div style={{ display: 'flex', gap: '20px', flex: 1, overflowX: 'auto', paddingBottom: '8px', paddingRight: selectedTask ? '504px' : '0', transition: 'padding 0.3s ease' }}>
         {columns.map((col, index) => (
-          <div 
-            key={col.id} draggable onDragStart={(e) => handleDragStart(e, 'column', col.id, index)} onDragOver={handleDragOver} onDrop={(e) => handleDropOnColumn(e, col.id, index)} 
-            style={{ flex: '0 0 auto', width: '300px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingColId === col.id ? 'default' : 'grab', backgroundColor: '#F7F7F8', borderRadius: '12px', borderTop: `4px solid ${col.color || '#64748B'}`, padding: '12px', position: 'relative', maxHeight: '100%', overflowY: 'auto' }}
-          >
+          <div key={col.id} draggable onDragStart={(e) => handleDragStart(e, 'column', col.id, index)} onDragOver={handleDragOver} onDrop={(e) => handleDropOnColumn(e, col.id, index)} style={{ flex: '0 0 auto', width: '300px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingColId === col.id ? 'default' : 'grab', backgroundColor: '#F7F7F8', borderRadius: '12px', borderTop: `4px solid ${col.color || '#64748B'}`, padding: '12px', position: 'relative', maxHeight: '100%', overflowY: 'auto' }}>
             {/* Header Kolom */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
@@ -379,12 +332,10 @@ const ProjectDetail = () => {
                 const isSelected = selectedTask?.id === task.id;
                 const colColor = col.color || '#64748B';
                 const taskLabel = getTaskLabel(task.id);
+                const mockCommentsCount = Math.floor(Math.random() * 5);
 
                 return (
-                  <div 
-                    key={task.id} draggable={editingTaskId !== task.id} onDragStart={(e) => handleDragStart(e, 'task', task.id)} onMouseEnter={() => setHoveredTaskId(task.id)} onMouseLeave={() => setHoveredTaskId(null)} onClick={() => { if(editingTaskId !== task.id) setSelectedTask(task) }} 
-                    style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '8px', border: isSelected ? `2px solid ${colColor}` : '1px solid #E5E7EB', boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingTaskId === task.id ? 'default' : 'pointer', transition: 'all 0.2s ease', position: 'relative' }}
-                  >
+                  <div key={task.id} draggable={editingTaskId !== task.id} onDragStart={(e) => handleDragStart(e, 'task', task.id)} onMouseEnter={() => setHoveredTaskId(task.id)} onMouseLeave={() => setHoveredTaskId(null)} onClick={() => { if(editingTaskId !== task.id) setSelectedTask(task) }} style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '8px', border: isSelected ? `2px solid ${colColor}` : '1px solid #E5E7EB', boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingTaskId === task.id ? 'default' : 'pointer', transition: 'all 0.2s ease', position: 'relative' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       {editingTaskId === task.id ? (
                         <input autoFocus value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} onBlur={() => handleSaveEditTask(task.id)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEditTask(task.id)} onClick={(e) => e.stopPropagation()} style={{ width: '100%', padding: '4px 8px', border: '1px solid #D1D5DB', borderRadius: '4px', outline: 'none', fontSize: '14px', fontWeight: '600', marginRight: '8px' }} />
@@ -392,9 +343,7 @@ const ProjectDetail = () => {
                         <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', lineHeight: '1.4', flex: 1, color: '#111827', paddingRight: '16px' }}>{task.title}</p>
                       )}
                       
-                      <button id={`btn-task-menu-${task.id}`} onClick={(e) => { e.stopPropagation(); setOpenMenuTaskId(openMenuTaskId === task.id ? null : task.id); setMoveSubmenuTaskId(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', color: hoveredTaskId === task.id || openMenuTaskId === task.id ? '#9CA3AF' : 'transparent', transition: 'color 0.2s ease-in-out', position: 'absolute', right: '12px', top: '16px' }}>
-                        <MoreHorizontal size={16} />
-                      </button>
+                      <button id={`btn-task-menu-${task.id}`} onClick={(e) => { e.stopPropagation(); setOpenMenuTaskId(openMenuTaskId === task.id ? null : task.id); setMoveSubmenuTaskId(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0', color: hoveredTaskId === task.id || openMenuTaskId === task.id ? '#9CA3AF' : 'transparent', transition: 'color 0.2s ease-in-out', position: 'absolute', right: '12px', top: '16px' }}><MoreHorizontal size={16} /></button>
 
                       {openMenuTaskId === task.id && (
                         <div id={`task-menu-${task.id}`} onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '36px', right: '12px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '180px', padding: '6px', zIndex: 30, display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -421,19 +370,13 @@ const ProjectDetail = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: taskLabel.color, padding: '2px 8px', borderRadius: '4px' }}>
-                        {taskLabel.name}
-                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: taskLabel.color, padding: '2px 8px', borderRadius: '4px' }}>{taskLabel.name}</span>
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#6B7280', fontSize: '12px' }}>
-                        {/* --- PERBAIKAN: Menampilkan Icon dan Tanggal hanya jika ada datanya --- */}
                         {(task.start_date || task.end_date) && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <CalendarIcon size={12} /> 
-                            {[formatDate(task.start_date), formatDate(task.end_date)].filter(Boolean).join(' - ')}
-                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CalendarIcon size={12} /> {[formatDate(task.start_date), formatDate(task.end_date)].filter(Boolean).join(' - ')}</span>
                         )}
                       </div>
                     </div>
@@ -448,13 +391,9 @@ const ProjectDetail = () => {
                   
                   <div style={{ position: 'relative' }}>
                     {newTaskLabel ? (
-                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: getLabelById(newTaskLabel).color, padding: '4px 10px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>
-                        {getLabelById(newTaskLabel).name}
-                      </button>
+                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: getLabelById(newTaskLabel).color, padding: '4px 10px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>{getLabelById(newTaskLabel).name}</button>
                     ) : (
-                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '500', color: '#6B7280', backgroundColor: '#F3F4F6', padding: '4px 10px', borderRadius: '6px', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
-                        <Plus size={12} /> Add Label
-                      </button>
+                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '500', color: '#6B7280', backgroundColor: '#F3F4F6', padding: '4px 10px', borderRadius: '6px', border: '1px solid #E5E7EB', cursor: 'pointer' }}><Plus size={12} /> Add Label</button>
                     )}
 
                     {showLabelSelectorColId === col.id && (
@@ -464,8 +403,7 @@ const ProjectDetail = () => {
                           <div style={{ padding: '0 12px', marginBottom: '4px', fontSize: '11px', fontWeight: '500', color: '#6B7280' }}>Select an option or create one</div>
                           {TASK_LABELS.filter(l => l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())).map(lbl => (
                             <div key={lbl.id} onClick={() => { setNewTaskLabel(lbl.id); setShowLabelSelectorColId(null); setLabelSearchQuery(''); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', cursor: 'pointer', transition: 'background-color 0.1s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><GripVertical size={14} color="#9CA3AF" /><span style={{ fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: lbl.color, padding: '2px 8px', borderRadius: '4px' }}>{lbl.name}</span></div>
-                              <MoreHorizontal size={14} color="#9CA3AF" />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><GripVertical size={14} color="#9CA3AF" /><span style={{ fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: lbl.color, padding: '2px 8px', borderRadius: '4px' }}>{lbl.name}</span></div><MoreHorizontal size={14} color="#9CA3AF" />
                             </div>
                           ))}
                         </div>
@@ -479,9 +417,7 @@ const ProjectDetail = () => {
                   </div>
                 </form>
               ) : (
-                <button onClick={() => setAddingTaskColId(col.id)} style={{ width: '100%', padding: '10px', backgroundColor: 'transparent', border: '1px dashed #D1D5DB', borderRadius: '8px', color: '#6B7280', fontSize: '13px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <Plus size={14} /> Add Task
-                </button>
+                <button onClick={() => setAddingTaskColId(col.id)} style={{ width: '100%', padding: '10px', backgroundColor: 'transparent', border: '1px dashed #D1D5DB', borderRadius: '8px', color: '#6B7280', fontSize: '13px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', cursor: 'pointer' }}><Plus size={14} /> Add Task</button>
               )}
             </div>
           </div>
@@ -505,167 +441,21 @@ const ProjectDetail = () => {
               </div>
             </form>
           ) : (
-            <button onClick={() => setIsAddingColumn(true)} style={{ width: '100%', padding: '16px', backgroundColor: 'transparent', border: '1px dashed #D1D5DB', borderRadius: '12px', color: '#6B7280', fontSize: '14px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <Plus size={16} /> Add Column
-            </button>
+            <button onClick={() => setIsAddingColumn(true)} style={{ width: '100%', padding: '16px', backgroundColor: 'transparent', border: '1px dashed #D1D5DB', borderRadius: '12px', color: '#6B7280', fontSize: '14px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer' }}><Plus size={16} /> Add Column</button>
           )}
         </div>
       </div>
 
-      {/* --- PANEL LACI TUGAS (DRAWER) --- */}
-      {selectedTask && createPortal(
-        <>
-          <div 
-            onClick={() => setSelectedTask(null)} 
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.35)', zIndex: 999998, backdropFilter: 'blur(2px)' }} 
-          />
-          
-          <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '480px', backgroundColor: '#FFFFFF', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.15)', zIndex: 999999, fontFamily: '"Inter", "Segoe UI", sans-serif' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', paddingBottom: '0' }}>
-              <button style={{ background: 'none', border: 'none', color: '#4B5563', cursor: 'pointer', padding: 0 }}><Code size={20} /></button>
-              <button onClick={() => setSelectedTask(null)} style={{ background: 'none', border: 'none', color: '#4B5563', cursor: 'pointer', padding: 0 }}><X size={20} /></button>
-            </div>
-
-            <div style={{ padding: '16px 24px 24px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
-              
-              {isEditingDrawerTitle ? (
-                <input 
-                  autoFocus
-                  value={drawerTitleVal}
-                  onChange={(e) => setDrawerTitleVal(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { updateSelectedTask({ title: drawerTitleVal }); setIsEditingDrawerTitle(false); }
-                    if (e.key === 'Escape') setIsEditingDrawerTitle(false);
-                  }}
-                  onBlur={() => { updateSelectedTask({ title: drawerTitleVal }); setIsEditingDrawerTitle(false); }}
-                  style={{ fontSize: '32px', fontWeight: '700', width: '100%', border: '1px solid #3B82F6', borderRadius: '8px', padding: '4px 8px', marginBottom: '24px', outline: 'none', color: '#111827' }}
-                />
-              ) : (
-                <h2 
-                  onClick={() => { setDrawerTitleVal(selectedTask.title); setIsEditingDrawerTitle(true); }}
-                  style={{ margin: '0 0 24px 0', fontSize: '32px', fontWeight: '700', color: '#111827', lineHeight: '1.2', cursor: 'text', padding: '4px 8px', borderRadius: '8px', marginLeft: '-8px' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  {selectedTask.title}
-                </h2>
-              )}
-
-              <hr style={{ border: 'none', borderTop: '1px solid #E5E7EB', margin: '0 0 24px 0' }} />
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6B7280', fontSize: '14px' }}><FileText size={16} /> Label</div>
-                  <div style={{ position: 'relative' }}>
-                    <button 
-                      id="btn-drawer-label"
-                      onClick={() => { setIsDrawerLabelOpen(!isDrawerLabelOpen); setDrawerLabelSearch(''); }}
-                      style={{ fontSize: '13px', fontWeight: '500', color: '#FFFFFF', backgroundColor: getTaskLabel(selectedTask.id).color, padding: '4px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
-                    >
-                      {getTaskLabel(selectedTask.id).name}
-                    </button>
-                    {isDrawerLabelOpen && (
-                      <div id="drawer-label-selector" style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', width: '240px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 40, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <input type="text" autoFocus placeholder="Search for an option..." value={drawerLabelSearch} onChange={(e) => setDrawerLabelSearch(e.target.value)} style={{ padding: '10px 12px', border: 'none', borderBottom: '1px solid #E5E7EB', fontSize: '13px', outline: 'none', color: '#111827' }} />
-                        <div style={{ padding: '8px 0', maxHeight: '200px', overflowY: 'auto' }}>
-                          <div style={{ padding: '0 12px', marginBottom: '4px', fontSize: '11px', fontWeight: '500', color: '#6B7280' }}>Select an option or create one</div>
-                          {TASK_LABELS.filter(l => l.name.toLowerCase().includes(drawerLabelSearch.toLowerCase())).map(lbl => (
-                            <div key={lbl.id} onClick={() => { updateSelectedTask({ label: lbl.id }); setIsDrawerLabelOpen(false); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', cursor: 'pointer', transition: 'background-color 0.1s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><GripVertical size={14} color="#9CA3AF" /><span style={{ fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: lbl.color, padding: '2px 8px', borderRadius: '4px' }}>{lbl.name}</span></div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6B7280', fontSize: '14px' }}><Clock size={16} /> Status</div>
-                  <div>
-                    <span style={{ fontSize: '13px', fontWeight: '500', color: '#065F46', backgroundColor: '#D1FAE5', padding: '4px 10px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: getColumnDetails(selectedTask.status).color }}></span>
-                      {getColumnDetails(selectedTask.status).name}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6B7280', fontSize: '14px' }}><CalendarIcon size={16} /> Start Date</div>
-                  <div>
-                    {isEditingStartDate ? (
-                      <input 
-                        type="date" autoFocus value={selectedTask.start_date || ''}
-                        onChange={(e) => { updateSelectedTask({ start_date: e.target.value }); setIsEditingStartDate(false); }}
-                        onBlur={() => setIsEditingStartDate(false)}
-                        style={{ fontSize: '13px', padding: '4px', border: '1px solid #3B82F6', borderRadius: '4px', outline: 'none' }}
-                      />
-                    ) : (
-                      <span 
-                        onClick={() => setIsEditingStartDate(true)}
-                        style={{ fontSize: '14px', color: selectedTask.start_date ? '#111827' : '#9CA3AF', cursor: 'text', padding: '4px 8px', borderRadius: '4px', marginLeft: '-8px' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        {formatDate(selectedTask.start_date) || 'Empty'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6B7280', fontSize: '14px' }}><CalendarIcon size={16} /> End Date</div>
-                  <div>
-                    {isEditingEndDate ? (
-                      <input 
-                        type="date" autoFocus value={selectedTask.end_date || ''}
-                        onChange={(e) => { updateSelectedTask({ end_date: e.target.value }); setIsEditingEndDate(false); }}
-                        onBlur={() => setIsEditingEndDate(false)}
-                        style={{ fontSize: '13px', padding: '4px', border: '1px solid #3B82F6', borderRadius: '4px', outline: 'none' }}
-                      />
-                    ) : (
-                      <span 
-                        onClick={() => setIsEditingEndDate(true)}
-                        style={{ fontSize: '14px', color: selectedTask.end_date ? '#111827' : '#9CA3AF', cursor: 'text', padding: '4px 8px', borderRadius: '4px', marginLeft: '-8px' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        {formatDate(selectedTask.end_date) || 'Empty'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid #E5E7EB', margin: '0 0 24px 0' }} />
-
-              <div>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlignLeft size={18} /> Description
-                </h4>
-                {isEditingDesc ? (
-                  <textarea
-                     autoFocus
-                     value={drawerDescVal}
-                     onChange={(e) => setDrawerDescVal(e.target.value)}
-                     onBlur={() => { updateSelectedTask({ description: drawerDescVal }); setIsEditingDesc(false); }}
-                     style={{ width: '100%', minHeight: '160px', padding: '12px', border: '1px solid #3B82F6', borderRadius: '8px', fontSize: '14px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', color: '#111827' }}
-                  />
-                ) : (
-                  <div 
-                    onClick={() => { setDrawerDescVal(selectedTask.description || ''); setIsEditingDesc(true); }}
-                    style={{ width: '100%', minHeight: '120px', padding: '12px', borderRadius: '8px', fontSize: '14px', color: selectedTask.description ? '#111827' : '#9CA3AF', cursor: 'text', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    {selectedTask.description || 'Add a more detailed description...'}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>,
-        document.body 
-      )}
+      {/* PANGGIL KOMPONEN TASK DRAWER DI SINI */}
+      <TaskDrawer 
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onUpdateTask={updateSelectedTask}
+        getColumnDetails={getColumnDetails}
+        getTaskLabel={getTaskLabel}
+        taskLabels={TASK_LABELS}
+        formatDate={formatDate}
+      />
 
     </div>
   );
