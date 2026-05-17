@@ -12,19 +12,20 @@ import (
 
 type TaskHandler struct {
 	DB         *gorm.DB
-	RabbitConn *amqp.Connection // Tambahan: Menampung koneksi RabbitMQ
+	RabbitConn *amqp.Connection
 }
 
 // ==========================================
 // CREATE TASK
 // ==========================================
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	// 1. Tambahkan "Status" di struct penangkap JSON
+	// Tambahkan Label ke penangkap JSON
 	var input struct {
-		Title       string `json:"title" binding:"required"`
-		Description string `json:"description"`
-		ProjectID   string `json:"project_id" binding:"required"`
-		Status      string `json:"status"` // <--- TAMBAHKAN INI
+		Title       string  `json:"title" binding:"required"`
+		Description string  `json:"description"`
+		ProjectID   string  `json:"project_id" binding:"required"`
+		Status      string  `json:"status"`
+		Label       *string `json:"label"` // Tangkap label saat Create
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -32,18 +33,17 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 2. Beri nilai default "To Do" HANYA JIKA dari frontend kosong
 	taskStatus := input.Status
 	if taskStatus == "" {
 		taskStatus = "To Do"
 	}
 
-	// 3. Masukkan taskStatus ke dalam data yang akan disimpan
 	task := repository.Task{
 		Title:       input.Title,
 		Description: input.Description,
 		ProjectID:   input.ProjectID,
-		Status:      taskStatus, // <--- GUNAKAN VARIABEL INI, JANGAN DI-HARDCODE "To Do"
+		Status:      taskStatus,
+		Label:       input.Label, // Simpan label
 	}
 
 	if err := h.DB.Create(&task).Error; err != nil {
@@ -54,56 +54,55 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Tugas berhasil dibuat!", "data": task})
 }
 
-// Fungsi untuk mengambil daftar tugas
+// ==========================================
+// GET TASKS
+// ==========================================
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	var tasks []repository.Task
 
-	// Mengambil semua data tugas dari database
-	// Di masa depan, ini bisa difilter berdasarkan project_id atau user_id
 	if err := h.DB.Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memuat daftar tugas"})
 		return
 	}
 
-	// Mengembalikan respons dengan key "data" (Sesuai yang diharapkan frontend)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Berhasil memuat tugas",
 		"data":    tasks,
 	})
 }
 
-// Fungsi untuk memperbarui status tugas (Drag & Drop)
+// ==========================================
+// UPDATE TASK (DINAMIS - VERSI MAP)
+// ==========================================
 func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
-	// 1. Ambil ID tugas dari parameter URL
 	id := c.Param("id")
 
-	// 2. Siapkan wadah untuk menangkap status baru dari frontend
-	var input struct {
-		Status string `json:"status" binding:"required"`
-	}
-
+	// 1. Gunakan map untuk menangkap data persis apa adanya dari Frontend (termasuk nilai null)
+	var input map[string]interface{}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
 		return
 	}
 
-	// 3. Cari tugas berdasarkan ID di database
+	// 2. Pastikan tugasnya ada di database
 	var task repository.Task
 	if err := h.DB.First(&task, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tugas tidak ditemukan"})
 		return
 	}
 
-	// 4. Perbarui statusnya dan simpan kembali ke database
-	task.Status = input.Status
-	if err := h.DB.Save(&task).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui status tugas"})
+	// 3. Keajaiban GORM: Updates() menggunakan map akan langsung mengaplikasikan
+	// nilai null ke kolom yang tepat di database secara otomatis!
+	if err := h.DB.Model(&task).Updates(input).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui tugas"})
 		return
 	}
 
-	// 5. Berikan respons sukses
+	// 4. Tarik data terbaru dari DB setelah di-update agar dikembalikan ke Frontend
+	h.DB.First(&task, "id = ?", id)
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Status tugas berhasil diperbarui",
+		"message": "Tugas berhasil diperbarui",
 		"data":    task,
 	})
 }
@@ -114,8 +113,6 @@ func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	id := c.Param("id")
 
-	// GORM otomatis melakukan "Soft Delete" (hanya mengisi kolom deleted_at)
-	// Jadi data tidak benar-benar hilang dari database, sangat aman untuk audit!
 	if err := h.DB.Where("id = ?", id).Delete(&repository.Task{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus tugas"})
 		return

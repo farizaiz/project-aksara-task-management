@@ -4,9 +4,8 @@ import axios from 'axios';
 import { 
   Plus, Layout, List as ListIcon, Calendar as CalendarIcon, 
   ChevronRight, Folder, Settings2, Trash2, Edit2, Filter, ArrowUpDown,
-  MoreHorizontal, Edit, Palette, MessageSquare, Copy, ArrowRight, GripVertical
+  MoreHorizontal, Palette, Copy, ArrowRight, GripVertical, Search, X, ChevronLeft, Check
 } from 'lucide-react';
-// IMPORT KOMPONEN DRAWER BARU
 import TaskDrawer from './components/TaskDrawer';
 
 const PRESET_COLORS = [
@@ -16,14 +15,21 @@ const PRESET_COLORS = [
   { name: 'Purple', value: '#A855F7' }
 ];
 
-const TASK_LABELS = [
-  { id: 'tahap-1', name: 'Tahap 1', color: '#DC2626', bg: '#FEE2E2' }, 
-  { id: 'tahap-2', name: 'Tahap 2', color: '#D97706', bg: '#FEF3C7' }, 
-  { id: 'tahap-3', name: 'Tahap 3', color: '#CA8A04', bg: '#FEF08A' }, 
-  { id: 'tahap-4', name: 'Tahap 4', color: '#16A34A', bg: '#DCFCE7' }, 
-  { id: 'tahap-5', name: 'Tahap 5', color: '#2563EB', bg: '#DBEAFE' }, 
-  { id: 'tahap-6', name: 'Tahap 6', color: '#9333EA', bg: '#EDE9FE' }, 
-  { id: 'tahap-7', name: 'Tahap 7', color: '#DB2777', bg: '#FCE7F3' }, 
+const NOTION_COLORS = [
+  { name: 'Default', color: '#374151', bg: '#F3F4F6', dot: '#9CA3AF' },
+  { name: 'Gray', color: '#4B5563', bg: '#E5E7EB', dot: '#6B7280' },
+  { name: 'Brown', color: '#92400E', bg: '#FEF3C7', dot: '#D97706' },
+  { name: 'Orange', color: '#C2410C', bg: '#FFEDD5', dot: '#F97316' },
+  { name: 'Yellow', color: '#A16207', bg: '#FEF9C3', dot: '#EAB308' },
+  { name: 'Green', color: '#15803D', bg: '#DCFCE7', dot: '#22C55E' },
+  { name: 'Blue', color: '#1D4ED8', bg: '#DBEAFE', dot: '#3B82F6' },
+  { name: 'Purple', color: '#7E22CE', bg: '#F3E8FF', dot: '#A855F7' },
+  { name: 'Pink', color: '#BE185D', bg: '#FCE7F3', dot: '#EC4899' },
+  { name: 'Red', color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
+];
+
+const DEFAULT_LABELS = [
+  { id: 'label-1', name: 'Tahap 1', color: '#374151', bg: '#F3F4F6', dot: '#9CA3AF' }, 
 ];
 
 const ProjectDetail = () => {
@@ -34,6 +40,8 @@ const ProjectDetail = () => {
   const [currentProject, setCurrentProject] = useState(null);
   const [columns, setColumns] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [taskLabels, setTaskLabels] = useState(DEFAULT_LABELS);
+  
   const [isLoading, setIsLoading] = useState(true);
 
   const [isAddingColumn, setIsAddingColumn] = useState(false);
@@ -50,6 +58,10 @@ const ProjectDetail = () => {
   const [newTaskLabel, setNewTaskLabel] = useState(null); 
   const [showLabelSelectorColId, setShowLabelSelectorColId] = useState(null);
   const [labelSearchQuery, setLabelSearchQuery] = useState('');
+  
+  const [editingLabelId, setEditingLabelId] = useState(null);
+  const [editLabelName, setEditLabelName] = useState('');
+  const [editLabelColor, setEditLabelColor] = useState(NOTION_COLORS[0]);
 
   const [hoveredTaskId, setHoveredTaskId] = useState(null);
   const [openMenuTaskId, setOpenMenuTaskId] = useState(null);
@@ -64,7 +76,13 @@ const ProjectDetail = () => {
       const token = localStorage.getItem('aksara_token');
       const projectRes = await axios.get(`http://localhost:8000/projects/${projectId}`, { headers: { Authorization: `Bearer ${token}` } });
       setCurrentProject(projectRes.data.data);
-      if (projectRes.data.data.columns) setColumns(typeof projectRes.data.data.columns === 'string' ? JSON.parse(projectRes.data.data.columns) : projectRes.data.data.columns);
+      
+      if (projectRes.data.data.columns) {
+        setColumns(typeof projectRes.data.data.columns === 'string' ? JSON.parse(projectRes.data.data.columns) : projectRes.data.data.columns);
+      }
+      if (projectRes.data.data.labels) {
+        setTaskLabels(typeof projectRes.data.data.labels === 'string' ? JSON.parse(projectRes.data.data.labels) : projectRes.data.data.labels);
+      }
       
       try {
         const taskRes = await axios.get('http://localhost:8000/tasks', { headers: { Authorization: `Bearer ${token}` } });
@@ -98,7 +116,7 @@ const ProjectDetail = () => {
       if (showLabelSelectorColId) {
         const popup = document.getElementById(`label-selector-${showLabelSelectorColId}`);
         if (popup && !popup.contains(e.target) && e.target.closest('button')?.getAttribute('id') !== `btn-add-label-${showLabelSelectorColId}`) {
-          setShowLabelSelectorColId(null); setLabelSearchQuery('');
+          setShowLabelSelectorColId(null); setLabelSearchQuery(''); setEditingLabelId(null);
         }
       }
     };
@@ -112,6 +130,23 @@ const ProjectDetail = () => {
       const token = localStorage.getItem('aksara_token');
       await axios.put(`http://localhost:8000/projects/${projectId}`, { columns: JSON.stringify(updatedColumns) }, { headers: { Authorization: `Bearer ${token}` } });
     } catch (error) {}
+  };
+
+  const saveLabelsToDB = async (updatedLabels) => {
+    setTaskLabels(updatedLabels); 
+    try {
+      const token = localStorage.getItem('aksara_token');
+      await axios.put(`http://localhost:8000/projects/${projectId}`, { 
+        labels: JSON.stringify(updatedLabels) 
+      }, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (error) {
+      console.error("Gagal menyimpan label ke database:", error);
+    }
+  };
+
+  const updateLabelInProject = (id, newName, newColorObj) => {
+    const updatedLabels = taskLabels.map(l => l.id === id ? { ...l, name: newName, color: newColorObj.color, bg: newColorObj.bg, dot: newColorObj.dot } : l);
+    saveLabelsToDB(updatedLabels);
   };
 
   const handleAddColumn = (e) => {
@@ -231,12 +266,14 @@ const ProjectDetail = () => {
     const col = columns.find(c => c.id === colId);
     return col ? { name: col.title, color: col.color } : { name: colId, color: '#64748B' };
   };
+  
   const getTaskLabel = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
-    if (!task || !task.label) return TASK_LABELS[0];
-    return TASK_LABELS.find(l => l.id === task.label) || TASK_LABELS[0];
+    if (!task || !task.label) return { name: 'No Label', color: '#9CA3AF', bg: '#F3F4F6' };
+    return taskLabels.find(l => l.id === task.label) || { name: 'No Label', color: '#9CA3AF', bg: '#F3F4F6' };
   };
-  const getLabelById = (labelId) => TASK_LABELS.find(l => l.id === labelId) || TASK_LABELS[0];
+  const getLabelById = (labelId) => taskLabels.find(l => l.id === labelId) || null;
+  
   const formatDate = (dateString) => {
     if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -244,6 +281,10 @@ const ProjectDetail = () => {
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#71717A' }}>Memuat data...</div>;
   if (!currentProject) return <div>Project tidak ditemukan</div>;
+
+  const searchTrimmed = labelSearchQuery.trim().toLowerCase();
+  const exactMatchExists = taskLabels.some(l => l.name.toLowerCase() === searchTrimmed);
+  const showCreateOption = searchTrimmed !== '' && !exactMatchExists;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: '"Inter", "Segoe UI", sans-serif' }}>
@@ -284,7 +325,7 @@ const ProjectDetail = () => {
       <div style={{ display: 'flex', gap: '20px', flex: 1, overflowX: 'auto', paddingBottom: '8px', paddingRight: selectedTask ? '504px' : '0', transition: 'padding 0.3s ease' }}>
         {columns.map((col, index) => (
           <div key={col.id} draggable onDragStart={(e) => handleDragStart(e, 'column', col.id, index)} onDragOver={handleDragOver} onDrop={(e) => handleDropOnColumn(e, col.id, index)} style={{ flex: '0 0 auto', width: '300px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingColId === col.id ? 'default' : 'grab', backgroundColor: '#F7F7F8', borderRadius: '12px', borderTop: `4px solid ${col.color || '#64748B'}`, padding: '12px', position: 'relative', maxHeight: '100%', overflowY: 'auto' }}>
-            {/* Header Kolom */}
+            
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                 {editingColId === col.id ? (
@@ -326,16 +367,15 @@ const ProjectDetail = () => {
               </div>
             )}
 
-            {/* List Tugas */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: '60px' }}>
               {tasks.filter(t => t.status === col.id).map(task => {
                 const isSelected = selectedTask?.id === task.id;
                 const colColor = col.color || '#64748B';
                 const taskLabel = getTaskLabel(task.id);
-                const mockCommentsCount = Math.floor(Math.random() * 5);
 
                 return (
                   <div key={task.id} draggable={editingTaskId !== task.id} onDragStart={(e) => handleDragStart(e, 'task', task.id)} onMouseEnter={() => setHoveredTaskId(task.id)} onMouseLeave={() => setHoveredTaskId(null)} onClick={() => { if(editingTaskId !== task.id) setSelectedTask(task) }} style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '8px', border: isSelected ? `2px solid ${colColor}` : '1px solid #E5E7EB', boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingTaskId === task.id ? 'default' : 'pointer', transition: 'all 0.2s ease', position: 'relative' }}>
+                    
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       {editingTaskId === task.id ? (
                         <input autoFocus value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} onBlur={() => handleSaveEditTask(task.id)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEditTask(task.id)} onClick={(e) => e.stopPropagation()} style={{ width: '100%', padding: '4px 8px', border: '1px solid #D1D5DB', borderRadius: '4px', outline: 'none', fontSize: '14px', fontWeight: '600', marginRight: '8px' }} />
@@ -370,7 +410,9 @@ const ProjectDetail = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: taskLabel.color, padding: '2px 8px', borderRadius: '4px' }}>{taskLabel.name}</span>
+                      {taskLabel && taskLabel.name !== 'No Label' && (
+                        <span style={{ fontSize: '11px', fontWeight: '500', color: taskLabel.color, backgroundColor: taskLabel.bg, padding: '2px 8px', borderRadius: '4px' }}>{taskLabel.name}</span>
+                      )}
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
@@ -380,6 +422,7 @@ const ProjectDetail = () => {
                         )}
                       </div>
                     </div>
+
                   </div>
                 );
               })}
@@ -391,22 +434,84 @@ const ProjectDetail = () => {
                   
                   <div style={{ position: 'relative' }}>
                     {newTaskLabel ? (
-                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: getLabelById(newTaskLabel).color, padding: '4px 10px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>{getLabelById(newTaskLabel).name}</button>
+                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', fontSize: '12px', fontWeight: '500', color: getLabelById(newTaskLabel)?.color || '#374151', backgroundColor: getLabelById(newTaskLabel)?.bg || '#FFFFFF', padding: '4px 10px', borderRadius: '6px', border: newTaskLabel ? 'none' : '1px solid #D1D5DB', cursor: 'pointer' }}>
+                        {getLabelById(newTaskLabel)?.name}
+                      </button>
                     ) : (
-                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '500', color: '#6B7280', backgroundColor: '#F3F4F6', padding: '4px 10px', borderRadius: '6px', border: '1px solid #E5E7EB', cursor: 'pointer' }}><Plus size={12} /> Add Label</button>
+                      <button id={`btn-add-label-${col.id}`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === col.id ? null : col.id); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '500', color: '#374151', backgroundColor: '#FFFFFF', padding: '4px 10px', borderRadius: '6px', border: '1px solid #D1D5DB', cursor: 'pointer' }}>
+                        <Plus size={14} /> Add Label
+                      </button>
                     )}
 
+                    {/* --- UI DROPDOWN BARU UNTUK BOARD --- */}
                     {showLabelSelectorColId === col.id && (
-                      <div id={`label-selector-${col.id}`} style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', width: '240px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 40, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <input type="text" autoFocus placeholder="Search for an option..." value={labelSearchQuery} onChange={(e) => setLabelSearchQuery(e.target.value)} style={{ padding: '10px 12px', border: 'none', borderBottom: '1px solid #E5E7EB', fontSize: '13px', outline: 'none', color: '#111827' }} />
-                        <div style={{ padding: '8px 0', maxHeight: '200px', overflowY: 'auto' }}>
-                          <div style={{ padding: '0 12px', marginBottom: '4px', fontSize: '11px', fontWeight: '500', color: '#6B7280' }}>Select an option or create one</div>
-                          {TASK_LABELS.filter(l => l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())).map(lbl => (
-                            <div key={lbl.id} onClick={() => { setNewTaskLabel(lbl.id); setShowLabelSelectorColId(null); setLabelSearchQuery(''); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', cursor: 'pointer', transition: 'background-color 0.1s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><GripVertical size={14} color="#9CA3AF" /><span style={{ fontSize: '11px', fontWeight: '500', color: '#FFFFFF', backgroundColor: lbl.color, padding: '2px 8px', borderRadius: '4px' }}>{lbl.name}</span></div><MoreHorizontal size={14} color="#9CA3AF" />
+                      <div id={`label-selector-${col.id}`} style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', width: '280px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 40, display: 'flex', flexDirection: 'column', overflow: 'hidden', color: '#111827' }}>
+                        
+                        {/* PANEL EDIT DI BOARD */}
+                        {editingLabelId ? (
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '12px', borderBottom: '1px solid #E5E7EB' }}>
+                              <button type="button" onClick={() => setEditingLabelId(null)} style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 8px 0 0' }}><ChevronLeft size={16} /></button>
+                              <input autoFocus value={editLabelName} onChange={(e) => { setEditLabelName(e.target.value); updateLabelInProject(editingLabelId, e.target.value, editLabelColor); }} style={{ flex: 1, backgroundColor: '#F9FAFB', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '4px 8px', fontSize: '13px', color: '#111827', outline: 'none' }} />
                             </div>
-                          ))}
-                        </div>
+                            
+                            <div style={{ padding: '4px 0', borderBottom: '1px solid #E5E7EB' }}>
+                              <div onClick={() => {
+                                const updatedLabels = taskLabels.filter(l => l.id !== editingLabelId);
+                                saveLabelsToDB(updatedLabels);
+                                if (newTaskLabel === editingLabelId) setNewTaskLabel(null);
+                                setEditingLabelId(null);
+                              }} style={{ padding: '8px 12px', fontSize: '13px', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                <Trash2 size={14} /> Delete
+                              </div>
+                            </div>
+
+                            <div style={{ padding: '8px 0', maxHeight: '180px', overflowY: 'auto' }}>
+                              <div style={{ padding: '0 12px', marginBottom: '4px', fontSize: '11px', fontWeight: '500', color: '#6B7280' }}>Colors</div>
+                              {NOTION_COLORS.map(c => (
+                                <div key={c.name} onClick={() => { setEditLabelColor(c); updateLabelInProject(editingLabelId, editLabelName, c); }} style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151' }}><span style={{ width: '14px', height: '14px', borderRadius: '3px', backgroundColor: c.dot }}></span>{c.name}</div>
+                                  {editLabelColor.name === c.name && <Check size={14} color="#6B7280" />}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #E5E7EB', gap: '8px' }}>
+                              <Search size={14} color="#6B7280" />
+                              <input type="text" autoFocus placeholder="Search or create label..." value={labelSearchQuery} onChange={(e) => setLabelSearchQuery(e.target.value)} style={{ flex: 1, background: 'transparent', border: 'none', fontSize: '13px', outline: 'none', color: '#111827' }} />
+                              {labelSearchQuery && <X size={14} color="#6B7280" style={{ cursor: 'pointer' }} onClick={() => setLabelSearchQuery('')} />}
+                            </div>
+
+                            <div style={{ padding: '8px 0', maxHeight: '200px', overflowY: 'auto' }}>
+                              <div style={{ padding: '0 12px', marginBottom: '4px', fontSize: '11px', fontWeight: '500', color: '#6B7280' }}>Available Labels</div>
+                              {taskLabels.filter(l => l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())).map(lbl => (
+                                <div key={lbl.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 12px', cursor: 'pointer', transition: 'background-color 0.1s' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F3F4F6'; e.currentTarget.querySelector('.edit-dots').style.opacity = 1; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.querySelector('.edit-dots').style.opacity = 0; }}>
+                                  <div onClick={() => { setNewTaskLabel(lbl.id); setShowLabelSelectorColId(null); setLabelSearchQuery(''); }} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                    <span style={{ fontSize: '13px', fontWeight: '400', color: lbl.color, backgroundColor: lbl.bg, padding: '2px 8px', borderRadius: '4px' }}>{lbl.name}</span>
+                                  </div>
+                                  <button type="button" className="edit-dots" onClick={(e) => { e.stopPropagation(); setEditingLabelId(lbl.id); setEditLabelName(lbl.name); setEditLabelColor(NOTION_COLORS.find(c => c.name === lbl.color) || NOTION_COLORS[0]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0, padding: '2px', color: '#6B7280' }}><MoreHorizontal size={14} /></button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {showCreateOption && (
+                              <div style={{ padding: '8px', borderTop: '1px solid #E5E7EB' }}>
+                                <div onClick={() => {
+                                  const newLabel = { id: 'label-' + Date.now(), name: labelSearchQuery.trim(), color: NOTION_COLORS[0].color, bg: NOTION_COLORS[0].bg, dot: NOTION_COLORS[0].dot };
+                                  saveLabelsToDB([...taskLabels, newLabel]);
+                                  setNewTaskLabel(newLabel.id);
+                                  setShowLabelSelectorColId(null);
+                                  setLabelSearchQuery('');
+                                }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: '#2563EB', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#EFF6FF'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                  <Plus size={14} color="#2563EB" /> Create "{labelSearchQuery.trim()}"
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                       </div>
                     )}
                   </div>
@@ -446,17 +551,16 @@ const ProjectDetail = () => {
         </div>
       </div>
 
-      {/* PANGGIL KOMPONEN TASK DRAWER DI SINI */}
       <TaskDrawer 
         task={selectedTask}
         onClose={() => setSelectedTask(null)}
         onUpdateTask={updateSelectedTask}
         getColumnDetails={getColumnDetails}
         getTaskLabel={getTaskLabel}
-        taskLabels={TASK_LABELS}
+        taskLabels={taskLabels} 
+        onUpdateProjectLabels={saveLabelsToDB}
         formatDate={formatDate}
       />
-
     </div>
   );
 };

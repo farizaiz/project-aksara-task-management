@@ -25,6 +25,10 @@ type Project struct {
 	// Menyimpan data kolom Kanban (To Do, Ideation, dll) dalam format JSON yang fleksibel
 	Columns string `gorm:"type:jsonb;default:'[]'" json:"columns"`
 
+	// ---> TAMBAHAN BARU: Menyimpan susunan Custom Label <---
+	// Menggunakan pointer (*string) agar GORM bisa membedakan mana update "kosong" dan mana yang tidak diupdate
+	Labels *string `gorm:"type:jsonb;default:'[]'" json:"labels"`
+
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

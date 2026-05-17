@@ -24,6 +24,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		BgColor     string `json:"bg_color"`
 		IconColor   string `json:"icon_color"`
 		Columns     string `json:"columns"`
+		Labels      string `json:"labels"` // Menangkap custom label jika ada
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -41,9 +42,15 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	// Set nilai default untuk UI jika frontend tidak mengirimkannya
 	columns := input.Columns
 	if columns == "" {
-		// Default susunan kolom kanban awal jika kosong
 		columns = `[{"id": "To Do", "title": "To Do", "color": "#71717A"}, {"id": "In Progress", "title": "In Progress", "color": "#CA8A04"}, {"id": "Done", "title": "Done", "color": "#16A34A"}]`
 	}
+
+	// Default susunan Label awal jika kosong (Sesuai dengan UI Frontend Anda)
+	labels := input.Labels
+	if labels == "" {
+		labels = `[{"id": "label-1", "name": "Tahap 1", "color": "#DC2626", "bg": "#FEE2E2"}, {"id": "label-2", "name": "Tahap 2", "color": "#D97706", "bg": "#FEF3C7"}, {"id": "label-3", "name": "Tahap 3", "color": "#CA8A04", "bg": "#FEF08A"}, {"id": "label-4", "name": "Tahap 4", "color": "#16A34A", "bg": "#DCFCE7"}, {"id": "label-5", "name": "Tahap 5", "color": "#2563EB", "bg": "#DBEAFE"}]`
+	}
+
 	bgColor := input.BgColor
 	if bgColor == "" {
 		bgColor = "#F4F4F5"
@@ -61,6 +68,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		BgColor:     bgColor,
 		IconColor:   iconColor,
 		Columns:     columns,
+		Labels:      &labels, // Menggunakan pointer *string sesuai struct di repository
 	}
 
 	if err := h.DB.Create(&project).Error; err != nil {
@@ -113,16 +121,14 @@ func (h *ProjectHandler) GetProjectByID(c *gin.Context) {
 }
 
 // ==========================================
-// UPDATE PROJECT (Untuk Simpan Kolom Dinamis)
+// UPDATE PROJECT (DINAMIS UNTUK KOLOM & LABEL)
 // ==========================================
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	id := c.Param("id")
 	ownerID := c.GetHeader("X-User-Id")
 
-	var input struct {
-		Columns string `json:"columns"`
-	}
-
+	// 1. Tangkap seluruh payload secara dinamis (Bisa berisi "columns", "labels", "name", dll)
+	var input map[string]interface{}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -134,12 +140,16 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 		return
 	}
 
-	// PERBAIKAN: Gunakan Model().Update() agar GORM secara paksa dan spesifik
-	// menimpa kolom JSONB di PostgreSQL, menghindari bug dari fungsi Save()
-	if err := h.DB.Model(&project).Update("columns", input.Columns).Error; err != nil {
+	// 2. PERBAIKAN: Gunakan Updates() dengan map.
+	// Ini akan otomatis mengaplikasikan apapun yang dikirim Frontend
+	// (misal hanya mengirim "labels") langsung tertimpa ke kolom yang benar di DB.
+	if err := h.DB.Model(&project).Updates(input).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengupdate project"})
 		return
 	}
+
+	// 3. Ambil ulang data segar dari DB setelah berhasil di-update
+	h.DB.Where("id = ?", id).First(&project)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Project berhasil diupdate", "data": project})
 }

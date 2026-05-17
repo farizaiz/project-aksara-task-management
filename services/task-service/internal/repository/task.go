@@ -17,8 +17,17 @@ type Task struct {
 	// Relasi antar microservices (Tanpa Foreign Key constraint di DB lokal)
 	ProjectID string `gorm:"type:uuid;not null;index" json:"project_id"`
 
-	// Menggunakan Pointer (*string) agar nilainya bisa NULL (jika tugas belum di-assign ke siapa pun)
+	// Menggunakan Pointer (*string) agar nilainya bisa NULL
 	AssigneeID *string `gorm:"type:uuid;index" json:"assignee_id"`
+
+	// ==========================================
+	// FIELD BARU HASIL UPDATE UI
+	// ==========================================
+	Label          *string `gorm:"type:varchar(50)" json:"label"`
+	StartDate      *string `gorm:"type:date" json:"start_date"`
+	EndDate        *string `gorm:"type:date" json:"end_date"`
+	Attachment     *string `gorm:"type:text" json:"attachment"`
+	AttachmentName *string `gorm:"type:varchar(255)" json:"attachment_name"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
