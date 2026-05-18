@@ -44,6 +44,7 @@ func main() {
 	r.GET("/projects", projectHandler.GetProjects)        // Tambahan route GET All Projects
 	r.GET("/projects/:id", projectHandler.GetProjectByID) // Tambahan route GET Detail Project
 	r.PUT("/projects/:id", projectHandler.UpdateProject)
+	r.DELETE("/projects/:id", projectHandler.DeleteProject)
 
 	log.Println("✅ Aksara Project Service berjalan di port 8082...")
 	r.Run(":8082")

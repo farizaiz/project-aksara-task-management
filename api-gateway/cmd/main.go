@@ -76,6 +76,7 @@ func main() {
 		protected.GET("/projects", reverseProxy(projectServiceURL))
 		protected.GET("/projects/:id", reverseProxy(projectServiceURL))
 		protected.PUT("/projects/:id", reverseProxy(projectServiceURL))
+		protected.DELETE("/projects/:id", reverseProxy(projectServiceURL))
 
 		// Rute untuk membuat tugas (POST)
 		protected.POST("/tasks", reverseProxy(taskServiceURL))

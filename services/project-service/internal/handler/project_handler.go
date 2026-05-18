@@ -153,3 +153,26 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Project berhasil diupdate", "data": project})
 }
+
+// ==========================================
+// DELETE PROJECT
+// ==========================================
+func (h *ProjectHandler) DeleteProject(c *gin.Context) {
+	id := c.Param("id")
+	ownerID := c.GetHeader("X-User-Id")
+
+	// Pastikan projectnya ada dan memang milik user yang sedang login
+	var project repository.Project
+	if err := h.DB.Where("id = ? AND owner_id = ?", id, ownerID).First(&project).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project tidak ditemukan atau Anda tidak memiliki akses"})
+		return
+	}
+
+	// Hapus project dari database
+	if err := h.DB.Delete(&project).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus project"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Project berhasil dihapus"})
+}

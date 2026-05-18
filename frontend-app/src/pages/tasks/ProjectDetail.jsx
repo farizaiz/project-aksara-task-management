@@ -4,7 +4,7 @@ import axios from 'axios';
 import { 
   Plus, Layout, List as ListIcon, Calendar as CalendarIcon, 
   ChevronRight, Folder, Settings2, Trash2, Edit2, Filter, ArrowUpDown,
-  MoreHorizontal, Palette, Copy, ArrowRight, GripVertical, Search, X, ChevronLeft, Check
+  MoreHorizontal, Palette, Copy, ArrowRight, GripVertical, Search, X, ChevronLeft, Check, Edit // <--- TAMBAHKAN KATA 'Edit' DI SINI
 } from 'lucide-react';
 import TaskDrawer from './components/TaskDrawer';
 
