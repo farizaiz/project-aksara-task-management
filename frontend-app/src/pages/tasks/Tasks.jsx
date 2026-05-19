@@ -237,21 +237,15 @@ const Tasks = () => {
                 </div>
               </div>
 
-              {/* Kanan: Tanggal Update, Tombol Open & Aksi Dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingLeft: '40px' }}>
+              {/* Kanan: Tanggal Update & Aksi Dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', paddingLeft: '40px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: '80px', gap: '4px' }}>
                   <p style={{ margin: 0, fontSize: '11px', color: '#A1A1AA', fontWeight: '500' }}>Updated</p>
                   <p style={{ margin: 0, fontSize: '12px', fontWeight: '600', color: '#18181B' }}>{getUpdatedText(project.updated_at)}</p>
                 </div>
 
-                <button 
-                  onClick={(e) => { e.stopPropagation(); navigate(`/tasks/${project.id}`); }}
-                  style={{ padding: '8px 16px', backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#18181B', transition: 'background-color 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F4F4F5'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
-                >
-                  Open Board
-                </button>
+                {/* Chevron Halus sebagai Indikator Klik */}
+                <ChevronRight size={20} color="#D4D4D8" />
 
                 {/* Tiga Titik Dropdown Aksi */}
                 <div className={`menu-container-${project.id}`} style={{ position: 'relative' }}>
