@@ -21,6 +21,7 @@ type Project struct {
 	Meta      string `gorm:"type:varchar(100)" json:"meta"` // Contoh: "Personal", "Shared"
 	BgColor   string `gorm:"type:varchar(20);default:'#F4F4F5'" json:"bg_color"`
 	IconColor string `gorm:"type:varchar(20);default:'#71717A'" json:"icon_color"`
+	Position  int    `gorm:"type:int;default:0" json:"position"` // Untuk menyimpan urutan Drag & Drop
 
 	// Menyimpan data kolom Kanban (To Do, Ideation, dll) dalam format JSON yang fleksibel
 	Columns string `gorm:"type:jsonb;default:'[]'" json:"columns"`

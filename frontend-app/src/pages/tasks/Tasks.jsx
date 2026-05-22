@@ -22,7 +22,6 @@ const Tasks = () => {
   
   // State untuk Filter & Sort
   const [filterCategory, setFilterCategory] = useState('All Categories');
-  const [sortOrder, setSortOrder] = useState('newest'); 
 
   // State untuk Menu & Modal Delete
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -31,7 +30,8 @@ const Tasks = () => {
   // State untuk Modal Edit Project
   const [projectToEdit, setProjectToEdit] = useState(null);
   const [editProjectName, setEditProjectName] = useState('');
-  const [editProjectMeta, setEditProjectMeta] = useState('Personal');
+  const [editProjectType, setEditProjectType] = useState('Personal');
+  const [editProjectCategory, setEditProjectCategory] = useState('');
   const [editProjectDesc, setEditProjectDesc] = useState('');
 
   const tabs = ['All Projects', 'Personal', 'Shared', 'Archived'];
@@ -86,7 +86,7 @@ const Tasks = () => {
     }
   };
 
-  const uniqueCategories = ['All Categories', ...new Set(projects.map(p => parseMeta(p.meta).c))];
+  const uniqueCategories = ['All Categories', 'Work', 'Household', 'Finance', 'Learning', 'Agenda', 'Health', 'Other'];
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -125,11 +125,17 @@ const Tasks = () => {
     e.preventDefault();
     if (!editProjectName.trim()) return;
 
+    const metaData = JSON.stringify({
+      c: editProjectCategory.trim() || 'Other',
+      s: editProjectType === 'Shared',
+      a: parseMeta(projectToEdit.meta).a // keep archived state
+    });
+
     try {
       const token = localStorage.getItem('aksara_token');
       await axios.put(`http://localhost:8000/projects/${projectToEdit.id}`, {
         name: editProjectName,
-        meta: editProjectMeta,
+        meta: metaData,
         description: editProjectDesc
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -210,11 +216,43 @@ const Tasks = () => {
     return true;
   });
 
-  filteredProjects.sort((a, b) => {
-    const dateA = new Date(a.created_at || 0).getTime();
-    const dateB = new Date(b.created_at || 0).getTime();
-    return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-  });
+  // Sort projects by position field (default 0)
+  filteredProjects.sort((a, b) => (a.position || 0) - (b.position || 0));
+
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData('projectIndex', index);
+  };
+
+  const handleDrop = async (e, targetIndex) => {
+    e.preventDefault();
+    const sourceIndex = e.dataTransfer.getData('projectIndex');
+    if (sourceIndex === '' || Number(sourceIndex) === targetIndex) return;
+
+    const updatedProjects = [...filteredProjects];
+    const [movedProject] = updatedProjects.splice(sourceIndex, 1);
+    updatedProjects.splice(targetIndex, 0, movedProject);
+
+    // Optimistic UI update
+    setProjects(prev => {
+      const next = [...prev];
+      updatedProjects.forEach((p, idx) => {
+        const i = next.findIndex(np => np.id === p.id);
+        if(i !== -1) next[i].position = idx;
+      });
+      return next;
+    });
+
+    try {
+      const token = localStorage.getItem('aksara_token');
+      await Promise.all(updatedProjects.map((p, idx) => 
+        axios.put(`http://localhost:8000/projects/${p.id}`, { position: idx }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ));
+    } catch (error) {
+      console.error("Gagal mengupdate urutan project:", error);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: '"Inter", "Segoe UI", sans-serif', position: 'relative' }}>
@@ -222,7 +260,6 @@ const Tasks = () => {
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: 'bold', color: '#09090B' }}>Tasks</h1>
           <p style={{ color: '#71717A', fontSize: '14px', margin: 0 }}>Kelola project tugas pribadi dan bersama dalam satu tempat.</p>
         </div>
         <button 
@@ -264,15 +301,6 @@ const Tasks = () => {
             </select>
             <ChevronRight size={14} style={{ transform: 'rotate(90deg)', color: '#A1A1AA', position: 'absolute', right: '12px', pointerEvents: 'none' }} />
           </div>
-
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '8px', padding: '0 12px' }}>
-            <ListIcon size={14} color="#71717A" style={{ marginRight: '6px' }} />
-            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ appearance: 'none', border: 'none', background: 'transparent', outline: 'none', padding: '10px 16px 10px 0', fontSize: '13px', fontWeight: '500', color: '#18181B', cursor: 'pointer', width: '100px' }}>
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-            </select>
-            <ChevronRight size={14} style={{ transform: 'rotate(90deg)', color: '#A1A1AA', position: 'absolute', right: '12px', pointerEvents: 'none' }} />
-          </div>
         </div>
       </div>
 
@@ -281,14 +309,18 @@ const Tasks = () => {
         {filteredProjects.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#A1A1AA', fontSize: '14px' }}>Tidak ada project di tab/kategori ini.</div>
         ) : (
-          filteredProjects.map((project) => {
+          filteredProjects.map((project, index) => {
             const stats = getProjectStats(project.id);
             const meta = parseMeta(project.meta);
             return (
               <div 
                 key={project.id} 
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, index)}
                 onClick={() => navigate(`/tasks/${project.id}`)}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', padding: '24px', borderRadius: '16px', border: '1px solid #E4E4E7', cursor: 'pointer', transition: 'box-shadow 0.2s, border-color 0.2s' }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', padding: '24px', borderRadius: '16px', border: '1px solid #E4E4E7', cursor: 'grab', transition: 'box-shadow 0.2s, border-color 0.2s' }}
                 onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)'; e.currentTarget.style.borderColor = '#D4D4D8'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#E4E4E7'; }}
               >
@@ -356,9 +388,11 @@ const Tasks = () => {
                       <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '180px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 50, padding: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <button 
                           onClick={() => { 
+                            const meta = parseMeta(project.meta);
                             setProjectToEdit(project); 
                             setEditProjectName(project.name);
-                            setEditProjectMeta(project.meta);
+                            setEditProjectType(meta.s ? 'Shared' : 'Personal');
+                            setEditProjectCategory(meta.c);
                             setEditProjectDesc(project.description || '');
                             setOpenMenuId(null); 
                           }}
@@ -474,14 +508,42 @@ const Tasks = () => {
             
             <form onSubmit={handleEditProject} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#18181B', marginBottom: '6px', display: 'block' }}>Nama Project</label>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#18181B', marginBottom: '6px', display: 'block' }}>Project Name</label>
                 <input autoFocus type="text" value={editProjectName} onChange={(e) => setEditProjectName(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E4E4E7', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} required />
               </div>
+
               <div>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#18181B', marginBottom: '6px', display: 'block' }}>Kategori (JSON Meta)</label>
-                <input type="text" value={editProjectMeta} onChange={(e) => setEditProjectMeta(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E4E4E7', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} />
-                <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Format saat ini: {"{c: 'Work', s: false, a: false}"}</span>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>Project Type</label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div onClick={() => setEditProjectType('Personal')} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: editProjectType === 'Personal' ? '2px solid #3B82F6' : '1px solid #E5E7EB', backgroundColor: editProjectType === 'Personal' ? '#EFF6FF' : '#FFFFFF', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <User size={18} color={editProjectType === 'Personal' ? '#2563EB' : '#6B7280'} />
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: editProjectType === 'Personal' ? '#1D4ED8' : '#374151' }}>Personal</span>
+                    </div>
+                  </div>
+                  <div onClick={() => setEditProjectType('Shared')} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: editProjectType === 'Shared' ? '2px solid #3B82F6' : '1px solid #E5E7EB', backgroundColor: editProjectType === 'Shared' ? '#EFF6FF' : '#FFFFFF', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Users size={18} color={editProjectType === 'Shared' ? '#2563EB' : '#6B7280'} />
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: editProjectType === 'Shared' ? '#1D4ED8' : '#374151' }}>Shared</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>Category</label>
+                <select value={editProjectCategory} onChange={(e) => setEditProjectCategory(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E4E4E7', fontSize: '14px', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFF', appearance: 'auto', cursor: 'pointer' }} required>
+                  <option value="" disabled>Pilih kategori</option>
+                  <option value="Work">Work</option>
+                  <option value="Household">Household</option>
+                  <option value="Finance">Finance</option>
+                  <option value="Learning">Learning</option>
+                  <option value="Agenda">Agenda</option>
+                  <option value="Health">Health</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
               <div>
                 <label style={{ fontSize: '13px', fontWeight: '600', color: '#18181B', marginBottom: '6px', display: 'block' }}>Deskripsi</label>
                 <textarea value={editProjectDesc} onChange={(e) => setEditProjectDesc(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E4E4E7', outline: 'none', fontSize: '14px', boxSizing: 'border-box', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }} />
