@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  Plus, Search, ChevronRight, List as ListIcon, Folder, Trash2, MoreHorizontal, Edit2, Copy, Archive, X, Filter, User, Users
+  Plus, Search, ChevronRight, ChevronDown, Check, GripVertical, List as ListIcon, Folder, Trash2, MoreHorizontal, Edit2, Copy, Archive, X, Filter, User, Users
 } from 'lucide-react';
 
 const Tasks = () => {
@@ -21,7 +21,8 @@ const Tasks = () => {
   const [newProjectDesc, setNewProjectDesc] = useState('');
   
   // State untuk Filter & Sort
-  const [filterCategory, setFilterCategory] = useState('All Categories');
+  const [filterCategories, setFilterCategories] = useState([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // State untuk Menu & Modal Delete
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -70,10 +71,13 @@ const Tasks = () => {
       if (openMenuId && !e.target.closest(`.menu-container-${openMenuId}`)) {
         setOpenMenuId(null);
       }
+      if (isFilterOpen && !e.target.closest(`.filter-container`)) {
+        setIsFilterOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [openMenuId]);
+  }, [openMenuId, isFilterOpen]);
 
   const parseMeta = (metaString) => {
     try {
@@ -86,7 +90,7 @@ const Tasks = () => {
     }
   };
 
-  const uniqueCategories = ['All Categories', 'Work', 'Household', 'Finance', 'Learning', 'Agenda', 'Health', 'Other'];
+  const uniqueCategories = ['Work', 'Household', 'Finance', 'Learning', 'Agenda', 'Health', 'Other'];
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -211,7 +215,7 @@ const Tasks = () => {
     if (activeTab === 'Shared' && (!meta.s || meta.a)) return false; 
     if (activeTab === 'Archived' && !meta.a) return false; 
 
-    if (filterCategory !== 'All Categories' && meta.c !== filterCategory) return false;
+    if (filterCategories.length > 0 && !filterCategories.includes(meta.c)) return false;
 
     return true;
   });
@@ -294,12 +298,63 @@ const Tasks = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '8px', padding: '0 12px' }}>
-            <Filter size={14} color="#71717A" style={{ marginRight: '6px' }} />
-            <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ appearance: 'none', border: 'none', background: 'transparent', outline: 'none', padding: '10px 16px 10px 0', fontSize: '13px', fontWeight: '500', color: '#18181B', cursor: 'pointer', width: '130px' }}>
-              {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-            <ChevronRight size={14} style={{ transform: 'rotate(90deg)', color: '#A1A1AA', position: 'absolute', right: '12px', pointerEvents: 'none' }} />
+          <div className="filter-container" style={{ position: 'relative' }}>
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: '#18181B', fontWeight: '500' }}
+            >
+              Category: {filterCategories.length === 0 ? 'All' : filterCategories.length === 1 ? filterCategories[0] : `${filterCategories.length} Selected`}
+              <ChevronDown size={16} color="#71717A" />
+            </button>
+
+            {isFilterOpen && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '200px', backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 50, padding: '8px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: '11px', color: '#A1A1AA', padding: '8px 12px', fontWeight: '600' }}>Category</div>
+                
+                <button 
+                  onClick={() => setFilterCategories([])}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: filterCategories.length === 0 ? '#18181B' : '#71717A', borderRadius: '6px', fontWeight: filterCategories.length === 0 ? '600' : '500', backgroundColor: filterCategories.length === 0 ? '#F4F4F5' : 'transparent' }}
+                  onMouseEnter={(e) => { if(filterCategories.length !== 0) e.currentTarget.style.backgroundColor = '#FAFAFA' }}
+                  onMouseLeave={(e) => { if(filterCategories.length !== 0) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  {filterCategories.length === 0 && <Check size={14} color="#18181B" />}
+                  <span style={{ marginLeft: filterCategories.length === 0 ? '0' : '22px' }}>All Categories</span>
+                </button>
+
+                {uniqueCategories.map(cat => {
+                  const isSelected = filterCategories.includes(cat);
+                  return (
+                    <button 
+                      key={cat}
+                      onClick={() => { 
+                        if (isSelected) {
+                          setFilterCategories(prev => prev.filter(c => c !== cat));
+                        } else {
+                          setFilterCategories(prev => [...prev, cat]);
+                        }
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: isSelected ? '#18181B' : '#71717A', borderRadius: '6px', fontWeight: isSelected ? '600' : '500', backgroundColor: isSelected ? '#F4F4F5' : 'transparent' }}
+                      onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.backgroundColor = '#FAFAFA' }}
+                      onMouseLeave={(e) => { if(!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
+                    >
+                      {isSelected && <Check size={14} color="#18181B" />}
+                      <span style={{ marginLeft: isSelected ? '0' : '22px' }}>{cat}</span>
+                    </button>
+                  );
+                })}
+
+                <div style={{ height: '1px', backgroundColor: '#F4F4F5', margin: '8px 0' }}></div>
+                
+                <button 
+                  onClick={() => { setFilterCategories([]); setIsFilterOpen(false); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#EF4444', borderRadius: '6px', fontWeight: '500' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Trash2 size={14} color="#EF4444" /> Clear filter
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -325,7 +380,10 @@ const Tasks = () => {
                 onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#E4E4E7'; }}
               >
                 {/* Kiri: Info Project */}
-                <div style={{ display: 'flex', gap: '20px', flex: 1 }}>
+                <div style={{ display: 'flex', gap: '20px', flex: 1, alignItems: 'center' }}>
+                  <div style={{ color: '#D4D4D8', display: 'flex', alignItems: 'center' }}>
+                    <GripVertical size={20} />
+                  </div>
                   <div style={{ width: '60px', height: '60px', borderRadius: '16px', backgroundColor: project.bg_color || '#EEF2FF', color: project.icon_color || '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Folder size={28} />
                   </div>
