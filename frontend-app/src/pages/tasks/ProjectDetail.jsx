@@ -4,7 +4,7 @@ import axios from 'axios';
 import { 
   Plus, Layout, List as ListIcon, Calendar as CalendarIcon, 
   ChevronRight, Folder, Settings2, Trash2, Edit2, Filter, ArrowUpDown,
-  MoreHorizontal, Palette, Copy, ArrowRight, GripVertical, Search, X, ChevronLeft, Check, Edit // <--- TAMBAHKAN KATA 'Edit' DI SINI
+  MoreHorizontal, Palette, Copy, ArrowRight, GripVertical, Search, X, ChevronLeft, Check, Edit, Square, CheckSquare, ChevronDown, ChevronUp
 } from 'lucide-react';
 import TaskDrawer from './components/TaskDrawer';
 
@@ -70,6 +70,15 @@ const ProjectDetail = () => {
   const [editTaskTitle, setEditTaskTitle] = useState('');
 
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // List View states
+  const [listSearchQuery, setListSearchQuery] = useState('');
+  const [isAddingListTask, setIsAddingListTask] = useState(false);
+  const [listNewTaskTitle, setListNewTaskTitle] = useState('');
+  const [listNewTaskStatus, setListNewTaskStatus] = useState('');
+  const [listNewTaskLabel, setListNewTaskLabel] = useState('');
+  const [listNewTaskStart, setListNewTaskStart] = useState('');
+  const [listNewTaskDue, setListNewTaskDue] = useState('');
 
   const fetchData = async () => {
     try {
@@ -177,6 +186,26 @@ const ProjectDetail = () => {
 
   const toggleMenu = (e, colId) => { e.stopPropagation(); setOpenMenuColId(openMenuColId === colId ? null : colId); };
   const openColorPicker = (col) => { setTempColor(col.color || '#64748B'); setColorPickerColId(col.id); setOpenMenuColId(null); };
+
+  const handleAddListTask = async (e) => {
+    e.preventDefault();
+    if (!listNewTaskTitle.trim() || !listNewTaskStatus) return;
+    try {
+      const token = localStorage.getItem('aksara_token');
+      await axios.post('http://localhost:8000/tasks', { 
+        title: listNewTaskTitle, 
+        project_id: projectId, 
+        status: listNewTaskStatus, 
+        label: listNewTaskLabel || null,
+        start_date: listNewTaskStart ? new Date(listNewTaskStart).toISOString() : null,
+        end_date: listNewTaskDue ? new Date(listNewTaskDue).toISOString() : null
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      setListNewTaskTitle(''); setListNewTaskStatus(''); setListNewTaskLabel(''); 
+      setListNewTaskStart(''); setListNewTaskDue(''); setIsAddingListTask(false);
+      fetchData(); 
+    } catch (error) {}
+  };
 
   const handleAddTask = async (e, colId) => {
     e.preventDefault();
@@ -299,7 +328,6 @@ const ProjectDetail = () => {
           <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: currentProject.bg_color || '#EEF2FF', color: currentProject.icon_color || '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Folder size={32} /></div>
           <div>
             <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', fontWeight: 'bold', color: '#111827' }}>{currentProject.name}</h1>
-            <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#6B7280', fontWeight: '500' }}>{currentProject.meta}</p>
             <p style={{ margin: 0, fontSize: '14px', color: '#6B7280' }}>{currentProject.description}</p>
           </div>
         </div>
@@ -315,14 +343,23 @@ const ProjectDetail = () => {
           <button onClick={() => setActiveView('List')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500', backgroundColor: activeView === 'List' ? '#FFFFFF' : 'transparent', color: activeView === 'List' ? '#111827' : '#6B7280' }}><ListIcon size={14} /> List</button>
           <button onClick={() => setActiveView('Calendar')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500', backgroundColor: activeView === 'Calendar' ? '#FFFFFF' : 'transparent', color: activeView === 'Calendar' ? '#111827' : '#6B7280' }}><CalendarIcon size={14} /> Calendar</button>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {activeView === 'List' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', width: '250px' }}>
+              <Search size={14} color="#9CA3AF" />
+              <input type="text" placeholder="Search task..." value={listSearchQuery} onChange={(e) => setListSearchQuery(e.target.value)} style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px' }} />
+            </div>
+          )}
           <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#FFFFFF', color: '#374151', borderRadius: '8px', border: '1px solid #E5E7EB', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}><Filter size={14} /> Filter</button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#FFFFFF', color: '#374151', borderRadius: '8px', border: '1px solid #E5E7EB', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}><ArrowUpDown size={14} /> Sort</button>
+          {activeView === 'Board' && (
+            <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#FFFFFF', color: '#374151', borderRadius: '8px', border: '1px solid #E5E7EB', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}><ArrowUpDown size={14} /> Sort</button>
+          )}
         </div>
       </div>
 
       {/* KANBAN BOARD */}
-      <div style={{ display: 'flex', gap: '20px', flex: 1, overflowX: 'auto', paddingBottom: '8px', paddingRight: selectedTask ? '504px' : '0', transition: 'padding 0.3s ease' }}>
+      {activeView === 'Board' && (
+        <div style={{ display: 'flex', gap: '20px', flex: 1, overflowX: 'auto', paddingBottom: '8px', paddingRight: selectedTask ? '504px' : '0', transition: 'padding 0.3s ease' }}>
         {columns.map((col, index) => (
           <div key={col.id} draggable onDragStart={(e) => handleDragStart(e, 'column', col.id, index)} onDragOver={handleDragOver} onDrop={(e) => handleDropOnColumn(e, col.id, index)} style={{ flex: '0 0 auto', width: '300px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingColId === col.id ? 'default' : 'grab', backgroundColor: '#F7F7F8', borderRadius: '12px', borderTop: `4px solid ${col.color || '#64748B'}`, padding: '12px', position: 'relative', maxHeight: '100%', overflowY: 'auto' }}>
             
@@ -550,6 +587,135 @@ const ProjectDetail = () => {
           )}
         </div>
       </div>
+      )}
+
+      {/* LIST VIEW */}
+      {activeView === 'List' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+          
+          {/* Header Tabel */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 50px', padding: '16px', borderBottom: '1px solid #E5E7EB', backgroundColor: '#FFFFFF', fontSize: '13px', fontWeight: '600', color: '#111827', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Task Name <ArrowUpDown size={12} color="#9CA3AF" /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Status <ArrowUpDown size={12} color="#9CA3AF" /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Label <ArrowUpDown size={12} color="#9CA3AF" /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Start Date <ArrowUpDown size={12} color="#9CA3AF" /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Due Date <ArrowUpDown size={12} color="#9CA3AF" /></div>
+            <div></div>
+          </div>
+
+          {/* Isi Tabel */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {tasks.filter(t => t.title.toLowerCase().includes(listSearchQuery.toLowerCase())).map((task, index) => {
+              const col = columns.find(c => c.id === task.status) || { title: task.status, color: '#64748B' };
+              const taskLabel = getTaskLabel(task.id);
+              return (
+                <div key={task.id} onClick={() => setSelectedTask(task)} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 50px', padding: '16px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', backgroundColor: '#FFFFFF', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}>
+                  <div style={{ paddingRight: '16px' }}>
+                    {editingTaskId === task.id ? (
+                      <input autoFocus value={editTaskTitle} onChange={(e) => setEditTaskTitle(e.target.value)} onBlur={() => handleSaveEditTask(task.id)} onKeyDown={(e) => e.key === 'Enter' && handleSaveEditTask(task.id)} onClick={(e) => e.stopPropagation()} style={{ width: '100%', padding: '4px 8px', border: '1px solid #D1D5DB', borderRadius: '4px', outline: 'none', fontSize: '14px', fontWeight: '600', marginBottom: '4px' }} />
+                    ) : (
+                      <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '4px' }}>{task.title}</div>
+                    )}
+                    <div style={{ fontSize: '12px', color: '#6B7280' }}>Tidak ada deskripsi</div>
+                  </div>
+                  <div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', color: col.color, backgroundColor: `${col.color}15` }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: col.color }}></span>
+                      {col.title}
+                    </span>
+                  </div>
+                  <div>
+                    {taskLabel && taskLabel.name !== 'No Label' ? (
+                      <span style={{ fontSize: '12px', fontWeight: '500', color: taskLabel.color, backgroundColor: taskLabel.bg, padding: '4px 8px', borderRadius: '6px' }}>{taskLabel.name}</span>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#9CA3AF' }}>-</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {task.start_date ? <><CalendarIcon size={14} color="#9CA3AF" /> {formatDate(task.start_date)}</> : '-'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {task.end_date ? <><CalendarIcon size={14} color="#9CA3AF" /> {formatDate(task.end_date)}</> : '-'}
+                  </div>
+                  <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <button id={`btn-list-task-menu-${task.id}`} onClick={(e) => { e.stopPropagation(); setOpenMenuTaskId(openMenuTaskId === task.id ? null : task.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF' }} onMouseEnter={(e) => e.currentTarget.style.color = '#111827'} onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}>
+                      <MoreHorizontal size={16} />
+                    </button>
+                    {openMenuTaskId === task.id && (
+                      <div id={`list-task-menu-${task.id}`} onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '30px', right: '12px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', width: '160px', padding: '6px', zIndex: 30, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingTaskId(task.id); setEditTaskTitle(task.title); setOpenMenuTaskId(null); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#111827', borderRadius: '4px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}><Edit size={14} color="#6B7280" /> Rename task</button>
+                        <button onClick={(e) => handleDuplicateTask(e, task)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#111827', borderRadius: '4px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}><Copy size={14} color="#6B7280" /> Duplicate task</button>
+                        <div style={{ height: '1px', backgroundColor: '#E5E7EB', margin: '4px 0' }}></div>
+                        <button onClick={(e) => handleDeleteTask(e, task.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#EF4444', borderRadius: '4px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}><Trash2 size={14} color="#EF4444" /> Delete task</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Inline Add Task */}
+            {isAddingListTask ? (
+              <form onSubmit={handleAddListTask} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 2fr', padding: '16px', borderBottom: '1px solid #E5E7EB', alignItems: 'center', backgroundColor: '#F9FAFB' }}>
+                <div>
+                  <input autoFocus type="text" placeholder="Task Name..." value={listNewTaskTitle} onChange={(e) => setListNewTaskTitle(e.target.value)} style={{ width: '90%', padding: '8px', border: '1px solid #D1D5DB', borderRadius: '6px', outline: 'none', fontSize: '13px' }} required />
+                </div>
+                <div>
+                  <select value={listNewTaskStatus} onChange={(e) => setListNewTaskStatus(e.target.value)} style={{ padding: '8px', border: '1px solid #D1D5DB', borderRadius: '6px', outline: 'none', fontSize: '13px', width: '90%' }} required>
+                    <option value="" disabled>Select Status</option>
+                    {columns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <select value={listNewTaskLabel} onChange={(e) => setListNewTaskLabel(e.target.value)} style={{ padding: '8px', border: '1px solid #D1D5DB', borderRadius: '6px', outline: 'none', fontSize: '13px', width: '90%' }}>
+                    <option value="">No Label</option>
+                    {taskLabels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <input type="date" value={listNewTaskStart} onChange={(e) => setListNewTaskStart(e.target.value)} style={{ padding: '8px', border: '1px solid #D1D5DB', borderRadius: '6px', outline: 'none', fontSize: '13px', width: '90%' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="date" value={listNewTaskDue} onChange={(e) => setListNewTaskDue(e.target.value)} style={{ padding: '8px', border: '1px solid #D1D5DB', borderRadius: '6px', outline: 'none', fontSize: '13px', width: '130px' }} />
+                  <button type="submit" style={{ padding: '8px 16px', backgroundColor: '#111827', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Save</button>
+                  <button type="button" onClick={() => setIsAddingListTask(false)} style={{ padding: '8px 16px', backgroundColor: 'transparent', color: '#6B7280', border: 'none', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ padding: '16px' }}>
+                <button onClick={() => setIsAddingListTask(true)} style={{ width: '100%', padding: '12px', backgroundColor: '#F9FAFB', border: '1px dashed #D1D5DB', borderRadius: '8px', color: '#6B7280', fontSize: '14px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <Plus size={16} /> Add Task
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination Footer */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderTop: '1px solid #E5E7EB', backgroundColor: '#FFFFFF' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#111827' }}>
+                Rows per page: 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px', border: '1px solid #E5E7EB', borderRadius: '6px', cursor: 'pointer' }}>
+                  10 <ChevronDown size={14} color="#6B7280" />
+                </div>
+              </div>
+              <div style={{ fontSize: '13px', color: '#6B7280' }}>
+                Showing 1-10 of 42 tasks
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button style={{ padding: '6px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', cursor: 'pointer', color: '#9CA3AF', display: 'flex' }}><ChevronLeft size={16} /></button>
+              <button style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#2563EB', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>1</button>
+              <button style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', border: 'none', color: '#374151', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>2</button>
+              <button style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', border: 'none', color: '#374151', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>3</button>
+              <button style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', border: 'none', color: '#374151', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>4</button>
+              <button style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', border: 'none', color: '#374151', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>5</button>
+              <button style={{ padding: '6px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', cursor: 'pointer', color: '#374151', display: 'flex' }}><ChevronRight size={16} /></button>
+            </div>
+          </div>
+
+        </div>
+      )}
 
       <TaskDrawer 
         task={selectedTask}
