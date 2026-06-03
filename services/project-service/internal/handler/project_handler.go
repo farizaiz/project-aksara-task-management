@@ -48,7 +48,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	// Default susunan Label awal jika kosong (Sesuai dengan UI Frontend Anda)
 	labels := input.Labels
 	if labels == "" {
-		labels = `[{"id": "label-1", "name": "Tahap 1", "color": "#DC2626", "bg": "#FEE2E2"}, {"id": "label-2", "name": "Tahap 2", "color": "#D97706", "bg": "#FEF3C7"}, {"id": "label-3", "name": "Tahap 3", "color": "#CA8A04", "bg": "#FEF08A"}, {"id": "label-4", "name": "Tahap 4", "color": "#16A34A", "bg": "#DCFCE7"}, {"id": "label-5", "name": "Tahap 5", "color": "#2563EB", "bg": "#DBEAFE"}]`
+		labels = `[]`
 	}
 
 	bgColor := input.BgColor

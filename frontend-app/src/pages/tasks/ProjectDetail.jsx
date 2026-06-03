@@ -28,9 +28,7 @@ const NOTION_COLORS = [
   { name: 'Red', color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
 ];
 
-const DEFAULT_LABELS = [
-  { id: 'label-1', name: 'Tahap 1', color: '#374151', bg: '#F3F4F6', dot: '#9CA3AF' }, 
-];
+const DEFAULT_LABELS = [];
 
 const ProjectDetail = () => {
   const { projectId } = useParams();
@@ -361,7 +359,7 @@ const ProjectDetail = () => {
       {activeView === 'Board' && (
         <div style={{ display: 'flex', gap: '20px', flex: 1, overflowX: 'auto', paddingBottom: '8px', paddingRight: selectedTask ? '504px' : '0', transition: 'padding 0.3s ease' }}>
         {columns.map((col, index) => (
-          <div key={col.id} draggable onDragStart={(e) => handleDragStart(e, 'column', col.id, index)} onDragOver={handleDragOver} onDrop={(e) => handleDropOnColumn(e, col.id, index)} style={{ flex: '0 0 auto', width: '300px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingColId === col.id ? 'default' : 'grab', backgroundColor: '#F7F7F8', borderRadius: '12px', borderTop: `4px solid ${col.color || '#64748B'}`, padding: '12px', position: 'relative', maxHeight: '100%', overflowY: 'auto' }}>
+          <div key={col.id} draggable onDragStart={(e) => handleDragStart(e, 'column', col.id, index)} onDragOver={handleDragOver} onDrop={(e) => handleDropOnColumn(e, col.id, index)} style={{ flex: '0 0 auto', width: '300px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: editingColId === col.id ? 'default' : 'grab', backgroundColor: '#F7F7F8', borderRadius: '12px', borderTop: `4px solid ${col.color || '#64748B'}`, padding: '12px', position: 'relative', height: 'fit-content' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>

@@ -32,9 +32,16 @@ const Login = () => {
       }
     } catch (error) {
       if (error.response && error.response.data && error.response.data.error) {
-        setErrorMsg(error.response.data.error);
+        let errMsg = error.response.data.error;
+        if (errMsg.includes('failed on the \'email\' tag')) {
+          setErrorMsg('Format email tidak valid.');
+        } else if (errMsg.includes('record not found') || errMsg.includes('incorrect') || errMsg.includes('wrong')) {
+          setErrorMsg('Email atau password salah.');
+        } else {
+          setErrorMsg(errMsg);
+        }
       } else {
-        setErrorMsg('Gagal terhubung ke server. Pastikan API Gateway menyala.');
+        setErrorMsg('Gagal terhubung ke server. Pastikan sistem menyala.');
       }
     }
   };
@@ -53,7 +60,7 @@ const Login = () => {
       <div style={{ 
         display: 'flex', 
         width: '1000px', 
-        height: '600px', 
+        minHeight: '600px', 
         backgroundColor: '#FFFFFF', 
         borderRadius: '24px', 
         boxShadow: '0 20px 40px rgba(0,0,0,0.05)', 
@@ -117,7 +124,8 @@ const Login = () => {
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'center',
-          backgroundColor: '#FFFFFF'
+          backgroundColor: '#FFFFFF',
+          overflowY: 'auto'
         }}>
           <h2 style={{ margin: '0 0 8px 0', fontSize: '28px', color: '#111111' , textAlign: 'center'}}>Masuk ke Aksara</h2>
           <p style={{ margin: '0 0 35px 0', color: '#666666', fontSize: '15px', textAlign: 'center' }}>Silakan masuk untuk melanjutkan</p>
