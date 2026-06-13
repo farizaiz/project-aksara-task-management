@@ -91,7 +91,7 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 	var projects []repository.Project
 	// Hanya ambil project yang OwnerID-nya sesuai dengan ID dari token
-	if err := h.DB.Where("owner_id = ?", ownerID).Find(&projects).Error; err != nil {
+	if err := h.DB.Where("owner_id = ?", ownerID).Order("position ASC, created_at DESC").Find(&projects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data project"})
 		return
 	}

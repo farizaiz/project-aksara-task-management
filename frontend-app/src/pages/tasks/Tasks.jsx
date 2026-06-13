@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { 
+import {
   Plus, Search, ChevronRight, ChevronDown, Check, GripVertical, List as ListIcon, Folder, Trash2, MoreHorizontal, Edit2, Copy, Archive, X, Filter, User, Users
 } from 'lucide-react';
 
 const Tasks = () => {
   const navigate = useNavigate();
-  
+
   // Tab diubah sesuai desain terbaru
   const [activeTab, setActiveTab] = useState('All Projects');
   const [projects, setProjects] = useState([]);
-  const [allTasks, setAllTasks] = useState([]); 
-  
+  const [allTasks, setAllTasks] = useState([]);
+
   // State untuk Modal New Project
   const [isAdding, setIsAdding] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectType, setNewProjectType] = useState('Personal'); 
-  const [newProjectCategory, setNewProjectCategory] = useState(''); 
+  const [newProjectType, setNewProjectType] = useState('Personal');
+  const [newProjectCategory, setNewProjectCategory] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
-  
+
   // State untuk Filter & Sort
   const [filterCategories, setFilterCategories] = useState([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -28,12 +28,20 @@ const Tasks = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [projectToDelete, setProjectToDelete] = useState(null);
 
+  // State untuk Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+
   // State untuk Modal Edit Project
   const [projectToEdit, setProjectToEdit] = useState(null);
   const [editProjectName, setEditProjectName] = useState('');
   const [editProjectType, setEditProjectType] = useState('Personal');
   const [editProjectCategory, setEditProjectCategory] = useState('');
   const [editProjectDesc, setEditProjectDesc] = useState('');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, filterCategories, projects]);
 
   const tabs = ['All Projects', 'Personal', 'Shared', 'Archived'];
 
@@ -46,7 +54,7 @@ const Tasks = () => {
       if (projRes.data && projRes.data.data) {
         setProjects(projRes.data.data);
       }
-      
+
       try {
         const taskRes = await axios.get('http://localhost:8000/tasks', {
           headers: { Authorization: `Bearer ${token}` }
@@ -83,7 +91,7 @@ const Tasks = () => {
     try {
       const parsed = JSON.parse(metaString);
       return { c: parsed.c || 'Other', s: parsed.s || false, a: parsed.a || false };
-    } catch(e) {
+    } catch (e) {
       if (metaString === 'Archived') return { c: 'Other', s: false, a: true };
       if (metaString === 'Shared') return { c: 'Other', s: true, a: false };
       return { c: metaString || 'Other', s: false, a: false };
@@ -107,8 +115,8 @@ const Tasks = () => {
       await axios.post('http://localhost:8000/projects', {
         name: newProjectName,
         description: newProjectDesc,
-        meta: metaData, 
-        bg_color: '#EEF2FF', 
+        meta: metaData,
+        bg_color: '#EEF2FF',
         icon_color: '#4F46E5'
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -119,7 +127,7 @@ const Tasks = () => {
       setNewProjectCategory('');
       setNewProjectType('Personal');
       setIsAdding(false);
-      fetchData(); 
+      fetchData();
     } catch (error) {
       console.error("Gagal membuat project:", error);
     }
@@ -145,8 +153,8 @@ const Tasks = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setProjectToEdit(null); 
-      fetchData(); 
+      setProjectToEdit(null);
+      fetchData();
     } catch (error) {
       console.error("Gagal mengedit project:", error);
       alert("Terjadi kesalahan saat menyimpan perubahan.");
@@ -182,7 +190,7 @@ const Tasks = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProjectToDelete(null);
-      fetchData(); 
+      fetchData();
     } catch (error) {
       console.error("Gagal menghapus project:", error);
     }
@@ -209,11 +217,11 @@ const Tasks = () => {
 
   let filteredProjects = projects.filter(p => {
     const meta = parseMeta(p.meta);
-    
-    if (activeTab === 'All Projects' && meta.a) return false; 
-    if (activeTab === 'Personal' && (meta.s || meta.a)) return false; 
-    if (activeTab === 'Shared' && (!meta.s || meta.a)) return false; 
-    if (activeTab === 'Archived' && !meta.a) return false; 
+
+    if (activeTab === 'All Projects' && meta.a) return false;
+    if (activeTab === 'Personal' && (meta.s || meta.a)) return false;
+    if (activeTab === 'Shared' && (!meta.s || meta.a)) return false;
+    if (activeTab === 'Archived' && !meta.a) return false;
 
     if (filterCategories.length > 0 && !filterCategories.includes(meta.c)) return false;
 
@@ -221,7 +229,18 @@ const Tasks = () => {
   });
 
   // Sort projects by position field (default 0)
-  filteredProjects.sort((a, b) => (a.position || 0) - (b.position || 0));
+  filteredProjects.sort((a, b) => {
+    const posA = a.position || 0;
+    const posB = b.position || 0;
+    if (posA !== posB) return posA - posB;
+    // Jika position sama, project terbaru di atas
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedProjects = filteredProjects.slice(startIndex, startIndex + itemsPerPage);
 
   const handleDragStart = (e, index) => {
     e.dataTransfer.setData('projectIndex', index);
@@ -241,14 +260,14 @@ const Tasks = () => {
       const next = [...prev];
       updatedProjects.forEach((p, idx) => {
         const i = next.findIndex(np => np.id === p.id);
-        if(i !== -1) next[i].position = idx;
+        if (i !== -1) next[i].position = idx;
       });
       return next;
     });
 
     try {
       const token = localStorage.getItem('aksara_token');
-      await Promise.all(updatedProjects.map((p, idx) => 
+      await Promise.all(updatedProjects.map((p, idx) =>
         axios.put(`http://localhost:8000/projects/${p.id}`, { position: idx }, {
           headers: { Authorization: `Bearer ${token}` }
         })
@@ -260,13 +279,13 @@ const Tasks = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: '"Inter", "Segoe UI", sans-serif', position: 'relative' }}>
-      
+
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
           <p style={{ color: '#71717A', fontSize: '14px', margin: 0 }}>Kelola project tugas pribadi dan bersama dalam satu tempat.</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsAdding(true)}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#111111', color: '#FFFFFF', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: 'background-color 0.2s' }}
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#27272A'}
@@ -280,7 +299,7 @@ const Tasks = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           {tabs.map(tab => (
-            <button 
+            <button
               key={tab} onClick={() => setActiveTab(tab)}
               style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', border: activeTab === tab ? '1px solid #E4E4E7' : '1px solid transparent', backgroundColor: activeTab === tab ? '#FFFFFF' : 'transparent', color: activeTab === tab ? '#09090B' : '#71717A', boxShadow: activeTab === tab ? '0 1px 2px rgba(0,0,0,0.05)' : 'none', transition: 'all 0.2s' }}
             >
@@ -296,10 +315,10 @@ const Tasks = () => {
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#A1A1AA' }} />
           <input type="text" placeholder="Search projects..." style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: '8px', border: '1px solid #E4E4E7', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
         </div>
-        
+
         <div style={{ display: 'flex', gap: '12px' }}>
           <div className="filter-container" style={{ position: 'relative' }}>
-            <button 
+            <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: '#18181B', fontWeight: '500' }}
             >
@@ -310,12 +329,12 @@ const Tasks = () => {
             {isFilterOpen && (
               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '200px', backgroundColor: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 50, padding: '8px', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ fontSize: '11px', color: '#A1A1AA', padding: '8px 12px', fontWeight: '600' }}>Category</div>
-                
-                <button 
+
+                <button
                   onClick={() => setFilterCategories([])}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: filterCategories.length === 0 ? '#18181B' : '#71717A', borderRadius: '6px', fontWeight: filterCategories.length === 0 ? '600' : '500', backgroundColor: filterCategories.length === 0 ? '#F4F4F5' : 'transparent' }}
-                  onMouseEnter={(e) => { if(filterCategories.length !== 0) e.currentTarget.style.backgroundColor = '#FAFAFA' }}
-                  onMouseLeave={(e) => { if(filterCategories.length !== 0) e.currentTarget.style.backgroundColor = 'transparent' }}
+                  onMouseEnter={(e) => { if (filterCategories.length !== 0) e.currentTarget.style.backgroundColor = '#FAFAFA' }}
+                  onMouseLeave={(e) => { if (filterCategories.length !== 0) e.currentTarget.style.backgroundColor = 'transparent' }}
                 >
                   {filterCategories.length === 0 && <Check size={14} color="#18181B" />}
                   <span style={{ marginLeft: filterCategories.length === 0 ? '0' : '22px' }}>All Categories</span>
@@ -324,9 +343,9 @@ const Tasks = () => {
                 {uniqueCategories.map(cat => {
                   const isSelected = filterCategories.includes(cat);
                   return (
-                    <button 
+                    <button
                       key={cat}
-                      onClick={() => { 
+                      onClick={() => {
                         if (isSelected) {
                           setFilterCategories(prev => prev.filter(c => c !== cat));
                         } else {
@@ -334,8 +353,8 @@ const Tasks = () => {
                         }
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: isSelected ? '#18181B' : '#71717A', borderRadius: '6px', fontWeight: isSelected ? '600' : '500', backgroundColor: isSelected ? '#F4F4F5' : 'transparent' }}
-                      onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.backgroundColor = '#FAFAFA' }}
-                      onMouseLeave={(e) => { if(!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
+                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#FAFAFA' }}
+                      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
                     >
                       {isSelected && <Check size={14} color="#18181B" />}
                       <span style={{ marginLeft: isSelected ? '0' : '22px' }}>{cat}</span>
@@ -344,8 +363,8 @@ const Tasks = () => {
                 })}
 
                 <div style={{ height: '1px', backgroundColor: '#F4F4F5', margin: '8px 0' }}></div>
-                
-                <button 
+
+                <button
                   onClick={() => { setFilterCategories([]); setIsFilterOpen(false); }}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#EF4444', borderRadius: '6px', fontWeight: '500' }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEF2F2'}
@@ -364,12 +383,12 @@ const Tasks = () => {
         {filteredProjects.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#A1A1AA', fontSize: '14px' }}>Tidak ada project di tab/kategori ini.</div>
         ) : (
-          filteredProjects.map((project, index) => {
+          paginatedProjects.map((project, index) => {
             const stats = getProjectStats(project.id);
             const meta = parseMeta(project.meta);
             return (
-              <div 
-                key={project.id} 
+              <div
+                key={project.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => e.preventDefault()}
@@ -412,7 +431,7 @@ const Tasks = () => {
                     <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#16A34A' }}>{stats.done}</p>
                     <p style={{ margin: 0, fontSize: '12px', color: '#A1A1AA', fontWeight: '500' }}>Done</p>
                   </div>
-                  
+
                   {/* Linear Progress Bar Sesuai Gambar */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '80px' }}>
                     <p style={{ margin: 0, fontSize: '11px', color: '#A1A1AA', fontWeight: '500', marginBottom: '2px' }}>Progress</p>
@@ -433,7 +452,7 @@ const Tasks = () => {
                   <ChevronRight size={20} color="#D4D4D8" />
 
                   <div className={`menu-container-${project.id}`} style={{ position: 'relative' }}>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === project.id ? null : project.id); }}
                       style={{ background: 'none', border: '1px solid transparent', cursor: 'pointer', padding: '6px', borderRadius: '6px', color: '#A1A1AA', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = '#18181B'; e.currentTarget.style.backgroundColor = '#F4F4F5'; }}
@@ -444,15 +463,15 @@ const Tasks = () => {
 
                     {openMenuId === project.id && (
                       <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '180px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 50, padding: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <button 
-                          onClick={() => { 
+                        <button
+                          onClick={() => {
                             const meta = parseMeta(project.meta);
-                            setProjectToEdit(project); 
+                            setProjectToEdit(project);
                             setEditProjectName(project.name);
                             setEditProjectType(meta.s ? 'Shared' : 'Personal');
                             setEditProjectCategory(meta.c);
                             setEditProjectDesc(project.description || '');
-                            setOpenMenuId(null); 
+                            setOpenMenuId(null);
                           }}
                           style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#3F3F46', borderRadius: '6px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F4F4F5'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
@@ -465,10 +484,10 @@ const Tasks = () => {
                           <Archive size={14} color="#71717A" /> {meta.a ? 'Unarchive project' : 'Archive project'}
                         </button>
                         <div style={{ height: '1px', backgroundColor: '#E4E4E7', margin: '4px 0' }}></div>
-                        <button 
+                        <button
                           onClick={() => { setProjectToDelete(project); setOpenMenuId(null); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#EF4444', borderRadius: '6px', fontWeight: '500' }} 
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'} 
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '13px', color: '#EF4444', borderRadius: '6px', fontWeight: '500' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <Trash2 size={14} color="#EF4444" /> Delete project
@@ -483,24 +502,101 @@ const Tasks = () => {
         )}
       </div>
 
+      {/* PAGINATION */}
+      {filteredProjects.length > 0 && (
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '16px 0', borderTop: '1px solid #F4F4F5'
+        }}>
+          {/* Kiri: Rows per page */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#71717A' }}>
+            <span>Rows per page:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              style={{
+                padding: '4px 8px', border: '1px solid #E4E4E7', borderRadius: '6px',
+                fontSize: '13px', color: '#18181B', backgroundColor: '#FFFFFF', cursor: 'pointer', outline: 'none'
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+
+          {/* Tengah: Info halaman */}
+          <span style={{ fontSize: '13px', color: '#71717A' }}>
+            {startIndex + 1}–{Math.min(startIndex + itemsPerPage, filteredProjects.length)} of {filteredProjects.length}
+          </span>
+
+          {/* Kanan: Tombol navigasi */}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              style={{
+                padding: '6px 12px', border: '1px solid #E4E4E7', borderRadius: '6px',
+                backgroundColor: currentPage === 1 ? '#FAFAFA' : '#FFFFFF',
+                color: currentPage === 1 ? '#D4D4D8' : '#18181B',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px'
+              }}
+            >
+              ← Prev
+            </button>
+
+            {/* Nomor halaman */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                style={{
+                  padding: '6px 10px', border: '1px solid', borderRadius: '6px',
+                  borderColor: currentPage === page ? '#111111' : '#E4E4E7',
+                  backgroundColor: currentPage === page ? '#111111' : '#FFFFFF',
+                  color: currentPage === page ? '#FFFFFF' : '#18181B',
+                  cursor: 'pointer', fontSize: '13px', fontWeight: currentPage === page ? '600' : '400'
+                }}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '6px 12px', border: '1px solid #E4E4E7', borderRadius: '6px',
+                backgroundColor: currentPage === totalPages ? '#FAFAFA' : '#FFFFFF',
+                color: currentPage === totalPages ? '#D4D4D8' : '#18181B',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: '13px'
+              }}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ========================================= */}
       {/* MODAL CREATE PROJECT                        */}
       {/* ========================================= */}
       {isAdding && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.4)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)' }}>
           <div style={{ width: '500px', backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827' }}>Create New Project</h2>
-              <button onClick={() => setIsAdding(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}><X size={20}/></button>
+              <button onClick={() => setIsAdding(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280' }}><X size={20} /></button>
             </div>
             <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#6B7280' }}>Buat project untuk mengelola tugas berdasarkan kebutuhan pribadi atau keluarga.</p>
 
             <form onSubmit={handleCreateProject} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
+
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>Project Name</label>
-                <input type="text" autoFocus value={newProjectName} onChange={(e)=>setNewProjectName(e.target.value)} placeholder="Masukkan nama project" style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} required />
+                <input type="text" autoFocus value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Masukkan nama project" style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} required />
               </div>
 
               <div>
@@ -563,7 +659,7 @@ const Tasks = () => {
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#18181B' }}>Edit Project</h3>
               <button onClick={() => setProjectToEdit(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A1A1AA' }}><X size={18} /></button>
             </div>
-            
+
             <form onSubmit={handleEditProject} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ fontSize: '13px', fontWeight: '600', color: '#18181B', marginBottom: '6px', display: 'block' }}>Project Name</label>
