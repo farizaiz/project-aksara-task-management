@@ -26,6 +26,8 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		ProjectID   string  `json:"project_id" binding:"required"`
 		Status      string  `json:"status"`
 		Label       *string `json:"label"` // Tangkap label saat Create
+		StartDate   *string `json:"start_date"`
+		EndDate     *string `json:"end_date"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -44,6 +46,8 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		ProjectID:   input.ProjectID,
 		Status:      taskStatus,
 		Label:       input.Label, // Simpan label
+		StartDate:   input.StartDate,
+		EndDate:     input.EndDate,
 	}
 
 	if err := h.DB.Create(&task).Error; err != nil {

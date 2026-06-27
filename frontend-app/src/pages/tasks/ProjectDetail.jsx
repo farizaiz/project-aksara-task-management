@@ -70,7 +70,36 @@ const ProjectDetail = () => {
   const [selectedTask, setSelectedTask] = useState(null);
 
   // List View states
-  const [listSearchQuery, setListSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Filter states
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterLabel, setFilterLabel] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
+  const taskMatchesFilter = (task) => {
+    if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (filterStatus && task.status !== filterStatus) return false;
+    if (filterLabel && task.label !== filterLabel) return false;
+    if (filterDate) {
+      const taskStart = task.start_date ? new Date(task.start_date) : null;
+      const taskEnd = task.end_date ? new Date(task.end_date) : null;
+      const fDate = new Date(filterDate);
+      if (taskStart) taskStart.setHours(0,0,0,0);
+      if (taskEnd) taskEnd.setHours(0,0,0,0);
+      fDate.setHours(0,0,0,0);
+      
+      if (!taskStart && !taskEnd) return false;
+      if (taskStart && taskEnd) {
+        if (fDate < taskStart || fDate > taskEnd) return false;
+      } else if (taskStart) {
+        if (fDate.getTime() !== taskStart.getTime()) return false;
+      }
+    }
+    return true;
+  };
+
   const [isAddingListTask, setIsAddingListTask] = useState(false);
   const [listNewTaskTitle, setListNewTaskTitle] = useState('');
   const [listNewTaskStatus, setListNewTaskStatus] = useState('');
@@ -78,6 +107,77 @@ const ProjectDetail = () => {
   const [listNewTaskStart, setListNewTaskStart] = useState('');
   const [listNewTaskDue, setListNewTaskDue] = useState('');
 
+  // Calendar View states
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isAddingCalendarTask, setIsAddingCalendarTask] = useState(false);
+
+  const handleAddCalendarTask = async (e) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+    try {
+      const token = localStorage.getItem('aksara_token');
+      const startString = selectedDate.getFullYear() + '-' + String(selectedDate.getMonth() + 1).padStart(2, '0') + '-' + String(selectedDate.getDate()).padStart(2, '0');
+      await axios.post('http://localhost:8000/tasks', { 
+        title: newTaskTitle, 
+        project_id: projectId, 
+        status: columns[0]?.id || '', 
+        label: newTaskLabel,
+        start_date: startString,
+        end_date: startString
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      setNewTaskTitle(''); setIsAddingCalendarTask(false); setNewTaskLabel(null); setShowLabelSelectorColId(null); fetchData(); 
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    
+    const days = [];
+    // Previous month days
+    for (let i = firstDay - 1; i >= 0; i--) {
+      days.push({ day: daysInPrevMonth - i, isCurrentMonth: false, date: new Date(year, month - 1, daysInPrevMonth - i) });
+    }
+    // Current month days
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({ day: i, isCurrentMonth: true, date: new Date(year, month, i) });
+    }
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({ day: i, isCurrentMonth: false, date: new Date(year, month + 1, i) });
+    }
+    return days;
+  };
+
+  const getTasksForDate = (date) => {
+    return tasks.filter(task => {
+      if (!taskMatchesFilter(task)) return false;
+      const taskStart = task.start_date ? new Date(task.start_date) : null;
+      const taskEnd = task.end_date ? new Date(task.end_date) : null;
+      
+      const checkDate = new Date(date);
+      checkDate.setHours(0,0,0,0);
+      
+      if (taskStart) taskStart.setHours(0,0,0,0);
+      if (taskEnd) taskEnd.setHours(0,0,0,0);
+
+      if (taskStart && taskEnd) {
+        return checkDate >= taskStart && checkDate <= taskEnd;
+      } else if (taskStart) {
+        return checkDate.getTime() === taskStart.getTime();
+      } else if (taskEnd) {
+        return checkDate.getTime() === taskEnd.getTime();
+      }
+      return false;
+    });
+  };
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('aksara_token');
@@ -329,9 +429,6 @@ const ProjectDetail = () => {
             <p style={{ margin: 0, fontSize: '14px', color: '#6B7280' }}>{currentProject.description}</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button style={{ padding: '8px 16px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#FFFFFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}><Settings2 size={16} /> Manage Columns</button>
-        </div>
       </div>
 
       {/* TABS */}
@@ -342,16 +439,53 @@ const ProjectDetail = () => {
           <button onClick={() => setActiveView('Calendar')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500', backgroundColor: activeView === 'Calendar' ? '#FFFFFF' : 'transparent', color: activeView === 'Calendar' ? '#111827' : '#6B7280' }}><CalendarIcon size={14} /> Calendar</button>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {activeView === 'List' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', width: '250px' }}>
-              <Search size={14} color="#9CA3AF" />
-              <input type="text" placeholder="Search task..." value={listSearchQuery} onChange={(e) => setListSearchQuery(e.target.value)} style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px' }} />
-            </div>
-          )}
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#FFFFFF', color: '#374151', borderRadius: '8px', border: '1px solid #E5E7EB', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}><Filter size={14} /> Filter</button>
-          {activeView === 'Board' && (
-            <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: '#FFFFFF', color: '#374151', borderRadius: '8px', border: '1px solid #E5E7EB', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}><ArrowUpDown size={14} /> Sort</button>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', width: '250px' }}>
+            <Search size={14} color="#9CA3AF" />
+            <input type="text" placeholder="Search task..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px' }} />
+          </div>
+          <div style={{ position: 'relative' }}>
+            <button 
+              onClick={() => setShowFilterMenu(!showFilterMenu)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: (filterStatus || filterLabel || filterDate) ? '#EEF2FF' : '#FFFFFF', color: (filterStatus || filterLabel || filterDate) ? '#4F46E5' : '#374151', borderRadius: '8px', border: '1px solid', borderColor: (filterStatus || filterLabel || filterDate) ? '#C7D2FE' : '#E5E7EB', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+              <Filter size={14} /> Filter {(filterStatus || filterLabel || filterDate) && '(Active)'}
+            </button>
+
+            {showFilterMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '16px', width: '280px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#111827' }}>Filter Tasks</h4>
+                  <button onClick={() => setShowFilterMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', display: 'flex', padding: 0 }}><X size={14} /></button>
+                </div>
+                
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#4B5563', marginBottom: '4px' }}>Status Progress</label>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '6px', border: '1px solid #D1D5DB' }}>
+                    <option value="">All Statuses</option>
+                    {columns.map(col => <option key={col.id} value={col.id}>{col.title}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#4B5563', marginBottom: '4px' }}>Label</label>
+                  <select value={filterLabel} onChange={(e) => setFilterLabel(e.target.value)} style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '6px', border: '1px solid #D1D5DB' }}>
+                    <option value="">All Labels</option>
+                    {taskLabels.map(label => <option key={label.id} value={label.id}>{label.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#4B5563', marginBottom: '4px' }}>Date</label>
+                  <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{ width: '100%', padding: '6px', fontSize: '13px', borderRadius: '6px', border: '1px solid #D1D5DB' }} />
+                </div>
+
+                {(filterStatus || filterLabel || filterDate) && (
+                  <button onClick={() => { setFilterStatus(''); setFilterLabel(''); setFilterDate(''); }} style={{ marginTop: '4px', background: 'none', border: 'none', color: '#EF4444', fontSize: '12px', cursor: 'pointer', textAlign: 'left', padding: 0 }}>
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -370,7 +504,7 @@ const ProjectDetail = () => {
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '600', backgroundColor: '#E5E7EB', color: '#4B5563', padding: '2px 8px', borderRadius: '12px' }}>{tasks.filter(t => t.status === col.id).length}</span>
+                <span style={{ fontSize: '12px', fontWeight: '600', backgroundColor: '#E5E7EB', color: '#4B5563', padding: '2px 8px', borderRadius: '12px' }}>{tasks.filter(t => t.status === col.id && taskMatchesFilter(t)).length}</span>
                 <button id={`btn-menu-${col.id}`} onClick={(e) => toggleMenu(e, col.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF' }} onMouseEnter={(e) => e.currentTarget.style.color = '#111827'} onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}><MoreHorizontal size={16} /></button>
                 
                 {openMenuColId === col.id && (
@@ -403,7 +537,7 @@ const ProjectDetail = () => {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: '60px' }}>
-              {tasks.filter(t => t.status === col.id).map(task => {
+              {tasks.filter(t => t.status === col.id && taskMatchesFilter(t)).map(task => {
                 const isSelected = selectedTask?.id === task.id;
                 const colColor = col.color || '#64748B';
                 const taskLabel = getTaskLabel(task.id);
@@ -603,7 +737,7 @@ const ProjectDetail = () => {
 
           {/* Isi Tabel */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
-            {tasks.filter(t => t.title.toLowerCase().includes(listSearchQuery.toLowerCase())).map((task, index) => {
+            {tasks.filter(t => taskMatchesFilter(t)).map((task, index) => {
               const col = columns.find(c => c.id === task.status) || { title: task.status, color: '#64748B' };
               const taskLabel = getTaskLabel(task.id);
               return (
@@ -714,6 +848,262 @@ const ProjectDetail = () => {
 
         </div>
       )}
+
+      {/* CALENDAR VIEW */}
+      {activeView === 'Calendar' && (
+        <div style={{ display: 'flex', gap: '20px', flex: 1, height: '100%' }}>
+          
+          {/* Main Calendar Area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+            
+            {/* Calendar Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: '1px solid #E5E7EB' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button 
+                  onClick={() => setCurrentMonth(new Date())}
+                  style={{ padding: '6px 12px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '13px', fontWeight: '500', color: '#374151', cursor: 'pointer' }}>
+                  Today
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button 
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                    style={{ padding: '6px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', color: '#374151', cursor: 'pointer', display: 'flex' }}>
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div style={{ padding: '6px 12px', fontSize: '14px', fontWeight: '600', color: '#111827', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    <ChevronDown size={14} color="#6B7280" />
+                  </div>
+                  <button 
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                    style={{ padding: '6px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', color: '#374151', cursor: 'pointer', display: 'flex' }}>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+              <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '13px', fontWeight: '500', color: '#374151', cursor: 'pointer' }}>
+                <Filter size={14} /> Filter
+              </button>
+            </div>
+
+            {/* Calendar Grid */}
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              {/* Days of week */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #E5E7EB', backgroundColor: '#FAFAFA' }}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '500', color: '#6B7280' }}>
+                    {day}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Dates */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(100px, 1fr)', flex: 1, backgroundColor: '#FFFFFF' }}>
+                {getDaysInMonth(currentMonth).map((dayObj, i) => {
+                  const isSelected = selectedDate && dayObj.date.toDateString() === selectedDate.toDateString();
+                  const isToday = dayObj.date.toDateString() === new Date().toDateString();
+                  const dayTasks = getTasksForDate(dayObj.date);
+                  
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => setSelectedDate(dayObj.date)}
+                      style={{ 
+                        borderRight: (i + 1) % 7 !== 0 ? '1px solid #F3F4F6' : 'none', 
+                        borderBottom: '1px solid #F3F4F6',
+                        padding: '8px', 
+                        cursor: 'pointer',
+                        backgroundColor: isSelected ? '#EFF6FF' : (dayObj.isCurrentMonth ? '#FFFFFF' : '#FAFAFA'),
+                        transition: 'background-color 0.1s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '8px' }}>
+                        <div style={{ 
+                          width: '24px', height: '24px', 
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                          borderRadius: '50%', 
+                          fontSize: '13px', 
+                          fontWeight: isToday ? '600' : '400',
+                          backgroundColor: isToday ? '#2563EB' : 'transparent',
+                          color: isToday ? '#FFFFFF' : (dayObj.isCurrentMonth ? '#111827' : '#9CA3AF') 
+                        }}>
+                          {dayObj.day}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {dayTasks.slice(0, 3).map(task => {
+                          const label = getTaskLabel(task.id);
+                          return (
+                            <div 
+                              key={task.id}
+                              onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
+                              style={{ 
+                                backgroundColor: label ? label.bg : '#F3F4F6', 
+                                padding: '4px 6px', 
+                                borderRadius: '4px', 
+                                fontSize: '11px', 
+                                color: label ? label.color : '#374151',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: label ? label.dot : '#9CA3AF', flexShrink: 0 }}></div>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</span>
+                            </div>
+                          );
+                        })}
+                        {dayTasks.length > 3 && (
+                          <div style={{ fontSize: '11px', color: '#6B7280', padding: '0 4px' }}>
+                            +{dayTasks.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+          </div>
+
+          {/* Side Panel for Selected Date */}
+          {selectedDate && (
+            <div style={{ width: '300px', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              
+              <div style={{ padding: '16px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#111827' }}>
+                    {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6B7280' }}>
+                    {getTasksForDate(selectedDate).length} tasks
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setSelectedDate(null)}
+                  style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '4px', display: 'flex' }}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div style={{ flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {getTasksForDate(selectedDate).length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: '13px', marginTop: '20px' }}>
+                    No tasks for this day.
+                  </div>
+                ) : (
+                  getTasksForDate(selectedDate).map(task => {
+                    const label = getTaskLabel(task.id);
+                    return (
+                      <div 
+                        key={task.id}
+                        onClick={() => setSelectedTask(task)}
+                        style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '8px' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500', color: '#111827' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: label ? label.dot : '#9CA3AF' }}></div>
+                            {task.title}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', color: getColumnDetails(task.status).color, border: `1px solid ${getColumnDetails(task.status).color}40`, backgroundColor: `${getColumnDetails(task.status).color}15`, padding: '2px 6px', borderRadius: '4px', fontWeight: '500' }}>
+                              {getColumnDetails(task.status).name}
+                            </span>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setOpenMenuTaskId(openMenuTaskId === task.id ? null : task.id); }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0 }}
+                            >
+                              <MoreHorizontal size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#6B7280' }}>
+                          <Folder size={12} color="#9CA3AF" />
+                          {currentProject?.name}
+                        </div>
+                        {/* Task Menu */}
+                        {openMenuTaskId === task.id && (
+                          <div style={{ marginTop: '8px', borderTop: '1px solid #E5E7EB', paddingTop: '8px', display: 'flex', gap: '8px' }}>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingTaskId(task.id); setEditTaskTitle(task.title); setOpenMenuTaskId(null); }} style={{ padding: '4px 8px', fontSize: '12px', background: '#F3F4F6', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Edit</button>
+                            <button onClick={(e) => handleDeleteTask(e, task.id)} style={{ padding: '4px 8px', fontSize: '12px', background: '#FEE2E2', color: '#EF4444', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div style={{ padding: '16px', borderTop: '1px solid #E5E7EB' }}>
+                {isAddingCalendarTask ? (
+                  <form onSubmit={handleAddCalendarTask} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <input autoFocus type="text" placeholder="Task title..." value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px', outline: 'none' }} />
+                    <div style={{ position: 'relative' }}>
+                      {newTaskLabel ? (
+                        <button id={`btn-add-label-calendar`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === 'calendar' ? null : 'calendar'); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', fontSize: '12px', fontWeight: '500', color: getLabelById(newTaskLabel)?.color || '#374151', backgroundColor: getLabelById(newTaskLabel)?.bg || '#FFFFFF', padding: '4px 10px', borderRadius: '6px', border: newTaskLabel ? 'none' : '1px solid #D1D5DB', cursor: 'pointer' }}>
+                          {getLabelById(newTaskLabel)?.name}
+                        </button>
+                      ) : (
+                        <button id={`btn-add-label-calendar`} type="button" onClick={() => { setShowLabelSelectorColId(showLabelSelectorColId === 'calendar' ? null : 'calendar'); setLabelSearchQuery(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '500', color: '#374151', backgroundColor: '#FFFFFF', padding: '4px 10px', borderRadius: '6px', border: '1px solid #D1D5DB', cursor: 'pointer' }}>
+                          <Plus size={14} /> Add Label
+                        </button>
+                      )}
+                      {showLabelSelectorColId === 'calendar' && (
+                        <div id={`label-selector-calendar`} style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', width: '280px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 -8px 24px rgba(0,0,0,0.12)', zIndex: 40, display: 'flex', flexDirection: 'column', overflow: 'hidden', color: '#111827' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #E5E7EB', gap: '8px' }}>
+                              <Search size={14} color="#6B7280" />
+                              <input type="text" autoFocus placeholder="Search or create label..." value={labelSearchQuery} onChange={(e) => setLabelSearchQuery(e.target.value)} style={{ flex: 1, background: 'transparent', border: 'none', fontSize: '13px', outline: 'none', color: '#111827' }} />
+                              {labelSearchQuery && <X size={14} color="#6B7280" style={{ cursor: 'pointer' }} onClick={() => setLabelSearchQuery('')} />}
+                            </div>
+                            <div style={{ padding: '8px 0', maxHeight: '200px', overflowY: 'auto' }}>
+                              <div style={{ padding: '0 12px', marginBottom: '4px', fontSize: '11px', fontWeight: '500', color: '#6B7280' }}>Available Labels</div>
+                              {taskLabels.filter(l => l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())).map(lbl => (
+                                <div key={lbl.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 12px', cursor: 'pointer', transition: 'background-color 0.1s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                  <div onClick={() => { setNewTaskLabel(lbl.id); setShowLabelSelectorColId(null); setLabelSearchQuery(''); }} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                    <span style={{ fontSize: '13px', fontWeight: '400', color: lbl.color, backgroundColor: lbl.bg, padding: '2px 8px', borderRadius: '4px' }}>{lbl.name}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            {showCreateOption && (
+                              <div style={{ padding: '8px', borderTop: '1px solid #E5E7EB' }}>
+                                <div onClick={() => {
+                                  const newLabel = { id: 'label-' + Date.now(), name: labelSearchQuery.trim(), color: NOTION_COLORS[0].color, bg: NOTION_COLORS[0].bg, dot: NOTION_COLORS[0].dot };
+                                  saveLabelsToDB([...taskLabels, newLabel]);
+                                  setNewTaskLabel(newLabel.id);
+                                  setShowLabelSelectorColId(null);
+                                  setLabelSearchQuery('');
+                                }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: '#2563EB', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#EFF6FF'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                  <Plus size={14} color="#2563EB" /> Create "{labelSearchQuery.trim()}"
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button type="submit" style={{ flex: 1, padding: '8px', backgroundColor: '#111827', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>Save</button>
+                      <button type="button" onClick={() => { setIsAddingCalendarTask(false); setNewTaskLabel(null); setShowLabelSelectorColId(null); }} style={{ padding: '8px', backgroundColor: 'transparent', color: '#6B7280', border: 'none', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                    </div>
+                  </form>
+                ) : (
+                  <button onClick={() => setIsAddingCalendarTask(true)} style={{ width: '100%', padding: '10px', backgroundColor: '#FFFFFF', border: '1px dashed #D1D5DB', borderRadius: '8px', color: '#6B7280', fontSize: '13px', fontWeight: '500', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <Plus size={14} /> Add Task
+                  </button>
+                )}
+              </div>
+
+            </div>
+          )}
+          
+        </div>
+      )}
+
 
       <TaskDrawer 
         task={selectedTask}
