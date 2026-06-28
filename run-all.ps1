@@ -7,7 +7,7 @@ cd ..
 Write-Host "Starting API Gateway..."
 Start-Process -FilePath "go" -ArgumentList "run", "cmd/main.go" -WorkingDirectory "$PWD\api-gateway" -WindowStyle Normal
 
-$services = @("user-service", "task-service", "project-service", "comment-service", "notification-service")
+$services = @("user-service", "task-service", "project-service", "comment-service", "notification-service", "finance-service")
 
 foreach ($service in $services) {
     Write-Host "Starting $service..."

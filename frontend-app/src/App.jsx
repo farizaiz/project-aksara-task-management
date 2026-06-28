@@ -7,6 +7,7 @@ import HomeDashboard from './pages/dashboard/HomeDashboard';
 import Tasks from './pages/tasks/Tasks'; 
 import ProjectDetail from './pages/tasks/ProjectDetail';
 import UserManagement from './pages/admin/UserManagement';
+import Finance from './pages/finance/Finance';
 // ----------------------------------------------------------------------
 
 const ProtectedRoute = ({ children }) => {
@@ -44,6 +45,9 @@ function App() {
 
           {/* Rute Admin */}
           <Route path="admin/users" element={<UserManagement />} />
+
+          {/* Rute Finance */}
+          <Route path="finance" element={<Finance />} />
         </Route>
         
         {/* Redirect jika rute tidak ditemukan */}

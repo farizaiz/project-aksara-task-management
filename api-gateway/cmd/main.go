@@ -56,6 +56,7 @@ func main() {
 	projectServiceURL := "http://localhost:8082"
 	taskServiceURL := "http://localhost:8083"
 	commentServiceURL := "http://localhost:8084" // Tambahkan target Comment Service
+	financeServiceURL := "http://localhost:8085"
 
 	// ==========================================
 	// RUTE PUBLIK (Tanpa Token)
@@ -86,6 +87,19 @@ func main() {
 
 		// Rute Comment Service
 		protected.POST("/comments", reverseProxy(commentServiceURL))
+
+		// Rute Finance Service
+		protected.GET("/finance/categories", reverseProxy(financeServiceURL))
+		protected.POST("/finance/categories", reverseProxy(financeServiceURL))
+		protected.PUT("/finance/categories/:id", reverseProxy(financeServiceURL))
+		protected.DELETE("/finance/categories/:id", reverseProxy(financeServiceURL))
+		protected.GET("/finance/transactions", reverseProxy(financeServiceURL))
+		protected.POST("/finance/transactions", reverseProxy(financeServiceURL))
+		protected.DELETE("/finance/transactions/:id", reverseProxy(financeServiceURL))
+		protected.GET("/finance/budgets", reverseProxy(financeServiceURL))
+		protected.POST("/finance/budgets", reverseProxy(financeServiceURL))
+		protected.GET("/finance/category-budgets", reverseProxy(financeServiceURL))
+		protected.POST("/finance/category-budgets", reverseProxy(financeServiceURL))
 
 		// Rute untuk mengambil profil user yang sedang login
 		protected.GET("/users/me", reverseProxy(userServiceURL))

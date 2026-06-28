@@ -8,4 +8,5 @@ use (
 	./services/project-service
 	./services/task-service
 	./services/user-service
+	./services/finance-service
 )
